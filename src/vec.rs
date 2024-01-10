@@ -6,6 +6,7 @@
  */
 
 use core::mem::MaybeUninit;
+use core::ops::Deref;
 use core::usize;
 
 pub struct Vec<T, const MAX_LENGTH: usize> {
@@ -204,8 +205,19 @@ impl<const MAX_LENGTH: usize> TryFrom<u64> for Vec<u8, MAX_LENGTH> {
     }
 }
 
+impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.array[..self.length]
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use core::array;
+    use core::ops::Deref;
+
     use crate::vec::Vec;
 
     #[test]
@@ -405,5 +417,14 @@ mod tests {
         let vec_result: Result<Vec<u8, 0>, _> = 1u8.try_into();
 
         assert!(vec_result.is_err());
+    }
+
+    #[test]
+    fn test_deref_with_empty_vec() {
+        let vec: Vec<u8, 1> = Vec::new();
+
+        let array = vec.deref();
+
+        assert_eq!(0, array.len());
     }
 }
