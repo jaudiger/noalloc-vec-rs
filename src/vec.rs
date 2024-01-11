@@ -215,7 +215,6 @@ impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
 
 #[cfg(test)]
 mod tests {
-    use core::array;
     use core::ops::Deref;
 
     use crate::vec::Vec;
