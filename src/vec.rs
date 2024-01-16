@@ -7,26 +7,30 @@
 
 use core::mem::MaybeUninit;
 use core::ops::Deref;
+use core::ptr;
+use core::slice;
 use core::usize;
 
 pub struct Vec<T, const MAX_LENGTH: usize> {
-    array: [T; MAX_LENGTH],
+    array: [MaybeUninit<T>; MAX_LENGTH],
     length: usize,
 }
 
 impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
+    const ARRAY_INIT_VALUE: MaybeUninit<T> = MaybeUninit::uninit();
+
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            array: unsafe { MaybeUninit::uninit().assume_init_read() },
-            ..Default::default()
+            array: [Self::ARRAY_INIT_VALUE; MAX_LENGTH],
+            length: 0,
         }
     }
 
     pub fn push(&mut self, value: T) -> Result<(), ()> {
         if self.length < MAX_LENGTH {
-            self.array[self.length] = value;
+            self.array[self.length].write(value);
             self.length += 1;
             Ok(())
         } else {
@@ -34,24 +38,24 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    pub fn pop(&mut self) -> Option<T>
-    where
-        T: Copy,
-    {
+    #[must_use]
+    pub fn pop(&mut self) -> Option<T> {
         if self.length > 0 {
             self.length -= 1;
-            Some(self.array[self.length])
+            Some(unsafe { self.array.get_unchecked(self.length).as_ptr().read() })
         } else {
             None
         }
     }
 
     #[inline]
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.length
     }
 
     #[inline]
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.length == 0
     }
@@ -61,20 +65,32 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.length = 0;
     }
 
-    pub const fn get(&self, index: usize) -> Option<&T> {
+    #[must_use]
+    pub fn get(&self, index: usize) -> Option<T> {
         if index < self.length {
-            Some(&self.array[index])
+            Some(unsafe { self.array.get_unchecked(index).as_ptr().read() })
         } else {
             None
         }
     }
 
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+    #[must_use]
+    pub fn get_mut(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            Some(&mut self.array[index])
+            Some(unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() })
         } else {
             None
         }
+    }
+
+    #[must_use]
+    const fn as_slice(&self) -> &[T] {
+        unsafe { slice::from_raw_parts(self.array.as_ptr().cast::<T>(), self.length) }
+    }
+
+    #[must_use]
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
     fn from_uint(array: &mut [MaybeUninit<u8>], from_value: u64) -> Result<usize, ()> {
@@ -111,6 +127,14 @@ impl<T, const MAX_LENGTH: usize> Default for Vec<T, MAX_LENGTH> {
     }
 }
 
+impl<T, const N: usize> Drop for Vec<T, N> {
+    fn drop(&mut self) {
+        unsafe {
+            ptr::drop_in_place(self.as_mut_slice());
+        }
+    }
+}
+
 impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     type Error = ();
 
@@ -119,18 +143,14 @@ impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
             return Err(());
         }
 
-        let mut array: [MaybeUninit<T>; MAX_LENGTH] =
-            unsafe { MaybeUninit::uninit().assume_init() }; // Do not initialize the array
+        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
 
         values.iter().enumerate().for_each(|(i, byte)| {
             array[i].write(*byte);
         });
 
         Ok(Self {
-            array: unsafe {
-                (*(&MaybeUninit::new(array) as *const _ as *const MaybeUninit<_>))
-                    .assume_init_read()
-            },
+            array,
             length: values.len(),
         })
     }
@@ -140,18 +160,11 @@ impl<const MAX_LENGTH: usize> TryFrom<u8> for Vec<u8, MAX_LENGTH> {
     type Error = ();
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let mut array: [MaybeUninit<u8>; MAX_LENGTH] =
-            unsafe { MaybeUninit::uninit().assume_init() }; // Do not initialize the array
+        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
 
         let length = Self::from_uint(&mut array, u64::from(value))?;
 
-        Ok(Self {
-            array: unsafe {
-                (*(&MaybeUninit::new(array) as *const _ as *const MaybeUninit<_>))
-                    .assume_init_read()
-            },
-            length,
-        })
+        Ok(Self { array, length })
     }
 }
 
@@ -159,18 +172,11 @@ impl<const MAX_LENGTH: usize> TryFrom<u16> for Vec<u8, MAX_LENGTH> {
     type Error = ();
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        let mut array: [MaybeUninit<u8>; MAX_LENGTH] =
-            unsafe { MaybeUninit::uninit().assume_init() }; // Do not initialize the array
+        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
 
         let length = Self::from_uint(&mut array, u64::from(value))?;
 
-        Ok(Self {
-            array: unsafe {
-                (*(&MaybeUninit::new(array) as *const _ as *const MaybeUninit<_>))
-                    .assume_init_read()
-            },
-            length,
-        })
+        Ok(Self { array, length })
     }
 }
 
@@ -178,18 +184,11 @@ impl<const MAX_LENGTH: usize> TryFrom<u32> for Vec<u8, MAX_LENGTH> {
     type Error = ();
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        let mut array: [MaybeUninit<u8>; MAX_LENGTH] =
-            unsafe { MaybeUninit::uninit().assume_init() }; // Do not initialize the array
+        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
 
         let length = Self::from_uint(&mut array, u64::from(value))?;
 
-        Ok(Self {
-            array: unsafe {
-                (*(&MaybeUninit::new(array) as *const _ as *const MaybeUninit<_>))
-                    .assume_init_read()
-            },
-            length,
-        })
+        Ok(Self { array, length })
     }
 }
 
@@ -197,18 +196,11 @@ impl<const MAX_LENGTH: usize> TryFrom<u64> for Vec<u8, MAX_LENGTH> {
     type Error = ();
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
-        let mut array: [MaybeUninit<u8>; MAX_LENGTH] =
-            unsafe { MaybeUninit::uninit().assume_init() }; // Do not initialize the array
+        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
 
         let length = Self::from_uint(&mut array, value)?;
 
-        Ok(Self {
-            array: unsafe {
-                (*(&MaybeUninit::new(array) as *const _ as *const MaybeUninit<_>))
-                    .assume_init_read()
-            },
-            length,
-        })
+        Ok(Self { array, length })
     }
 }
 
@@ -216,7 +208,7 @@ impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        &self.array[..self.length]
+        self.as_slice()
     }
 }
 
@@ -279,7 +271,7 @@ mod tests {
         assert_eq!(Ok(()), vec.push(1));
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(&1), vec.get(0));
+        assert_eq!(Some(1), vec.get(0));
         assert_eq!(None, vec.get(1));
     }
 
@@ -299,7 +291,7 @@ mod tests {
         assert_eq!(Ok(()), vec.push(1));
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(&mut 1), vec.get_mut(0));
+        assert_eq!(Some(1), vec.get_mut(0));
         assert_eq!(None, vec.get_mut(1));
     }
 
@@ -317,9 +309,9 @@ mod tests {
         let vec: Vec<u8, 3> = [1, 2, 3].as_ref().try_into().unwrap();
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(&1), vec.get(0));
-        assert_eq!(Some(&2), vec.get(1));
-        assert_eq!(Some(&3), vec.get(2));
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -328,9 +320,9 @@ mod tests {
         let vec: Vec<u8, 8> = [1, 2, 3].as_ref().try_into().unwrap();
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(&1), vec.get(0));
-        assert_eq!(Some(&2), vec.get(1));
-        assert_eq!(Some(&3), vec.get(2));
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -346,7 +338,7 @@ mod tests {
         let vec: Vec<u8, 8> = 0xffu8.try_into().unwrap();
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(&0xff), vec.get(0));
+        assert_eq!(Some(0xff), vec.get(0));
         assert_eq!(None, vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
@@ -361,8 +353,8 @@ mod tests {
         let vec: Vec<u8, 8> = 0xff00u16.try_into().unwrap();
 
         assert_eq!(2, vec.len());
-        assert_eq!(Some(&0x00), vec.get(0));
-        assert_eq!(Some(&0xff), vec.get(1));
+        assert_eq!(Some(0x00), vec.get(0));
+        assert_eq!(Some(0xff), vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
         assert_eq!(None, vec.get(4));
@@ -376,7 +368,7 @@ mod tests {
         let vec: Vec<u8, 8> = 0x00ffu16.try_into().unwrap();
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(&0xff), vec.get(0));
+        assert_eq!(Some(0xff), vec.get(0));
         assert_eq!(None, vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
@@ -391,10 +383,10 @@ mod tests {
         let vec: Vec<u8, 8> = 0xff00_ff00_u32.try_into().unwrap();
 
         assert_eq!(4, vec.len());
-        assert_eq!(Some(&0x00), vec.get(0));
-        assert_eq!(Some(&0xff), vec.get(1));
-        assert_eq!(Some(&0x00), vec.get(2));
-        assert_eq!(Some(&0xff), vec.get(3));
+        assert_eq!(Some(0x00), vec.get(0));
+        assert_eq!(Some(0xff), vec.get(1));
+        assert_eq!(Some(0x00), vec.get(2));
+        assert_eq!(Some(0xff), vec.get(3));
         assert_eq!(None, vec.get(4));
         assert_eq!(None, vec.get(5));
         assert_eq!(None, vec.get(6));
@@ -406,14 +398,14 @@ mod tests {
         let vec: Vec<u8, 8> = 0xff00_ff00_ff00_ff00_u64.try_into().unwrap();
 
         assert_eq!(8, vec.len());
-        assert_eq!(Some(&0x00), vec.get(0));
-        assert_eq!(Some(&0xff), vec.get(1));
-        assert_eq!(Some(&0x00), vec.get(2));
-        assert_eq!(Some(&0xff), vec.get(3));
-        assert_eq!(Some(&0x00), vec.get(4));
-        assert_eq!(Some(&0xff), vec.get(5));
-        assert_eq!(Some(&0x00), vec.get(6));
-        assert_eq!(Some(&0xff), vec.get(7));
+        assert_eq!(Some(0x00), vec.get(0));
+        assert_eq!(Some(0xff), vec.get(1));
+        assert_eq!(Some(0x00), vec.get(2));
+        assert_eq!(Some(0xff), vec.get(3));
+        assert_eq!(Some(0x00), vec.get(4));
+        assert_eq!(Some(0xff), vec.get(5));
+        assert_eq!(Some(0x00), vec.get(6));
+        assert_eq!(Some(0xff), vec.get(7));
     }
 
     #[test]
@@ -427,7 +419,7 @@ mod tests {
     fn test_deref_with_empty_vec() {
         let vec = Vec::<u8, 1>::new();
 
-        let array = &vec;
+        let array = &*vec;
 
         assert_eq!(0, array.len());
     }
