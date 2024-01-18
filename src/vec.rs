@@ -5,12 +5,17 @@
  *
  */
 
+use core::convert::Infallible;
+use core::mem::size_of;
 use core::mem::MaybeUninit;
 use core::ops::Deref;
 use core::ptr;
 use core::slice;
 use core::usize;
 
+use crate::assert::Assert;
+
+#[derive(Debug)]
 pub struct Vec<T, const MAX_LENGTH: usize> {
     array: [MaybeUninit<T>; MAX_LENGTH],
     length: usize,
@@ -30,12 +35,16 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     pub fn push(&mut self, value: T) -> Result<(), ()> {
         if self.length < MAX_LENGTH {
-            self.array[self.length].write(value);
-            self.length += 1;
+            self.push_unchecked(value);
             Ok(())
         } else {
             Err(())
         }
+    }
+
+    fn push_unchecked(&mut self, value: T) {
+        self.array[self.length].write(value);
+        self.length += 1;
     }
 
     #[must_use]
@@ -93,23 +102,45 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
-    fn from_uint(array: &mut [MaybeUninit<u8>], from_value: u64) -> Result<usize, ()> {
+    fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self
+    where
+        T: Copy,
+    {
+        let mut vec = Self::new();
+
+        for byte in &from_array {
+            vec.push_unchecked(*byte);
+        }
+
+        vec
+    }
+
+    fn from_slice_unchecked(from_slice: &[T]) -> Self
+    where
+        T: Copy,
+    {
+        let mut vec = Self::new();
+
+        for byte in from_slice {
+            vec.push_unchecked(*byte);
+        }
+
+        vec
+    }
+
+    #[must_use]
+    fn from_uint_unchecked(from_value: u64, max_length: usize) -> Self
+    where
+        T: From<u8>,
+    {
+        let mut vec = Self::new();
+
         let mut value = from_value;
         let mut index = 0;
-        let mut real_index = 0;
-        while index < 8 {
+        while index < max_length {
             let byte = (value & 0xff) as u8;
 
-            // The byte cannot be saved to the array
-            if byte != 0 {
-                if index >= MAX_LENGTH {
-                    return Err(());
-                }
-
-                real_index = index + 1;
-            }
-
-            array[index].write(byte);
+            vec.push_unchecked(byte.into());
 
             // Shift the value to the right
             value >>= 8;
@@ -117,7 +148,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
             index += 1;
         }
 
-        Ok(real_index)
+        vec
     }
 }
 
@@ -135,72 +166,99 @@ impl<T, const N: usize> Drop for Vec<T, N> {
     }
 }
 
+impl<'a, T, const N: usize> IntoIterator for &'a Vec<T, N> {
+    type Item = &'a T;
+    type IntoIter = slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> TryFrom<[T; LENGTH]>
+    for Vec<T, MAX_LENGTH>
+{
+    type Error = Infallible;
+
+    fn try_from(values: [T; LENGTH]) -> Result<Self, Self::Error> {
+        // Build time check
+        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+
+        Ok(Self::from_array_unchecked(values))
+    }
+}
+
 impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     type Error = ();
 
     fn try_from(values: &[T]) -> Result<Self, Self::Error> {
+        // Runtime check
         if values.len() > MAX_LENGTH {
             return Err(());
         }
 
-        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
+        Ok(Self::from_slice_unchecked(values))
+    }
+}
 
-        values.iter().enumerate().for_each(|(i, byte)| {
-            array[i].write(*byte);
-        });
+impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> TryFrom<&[T; LENGTH]>
+    for Vec<T, MAX_LENGTH>
+{
+    type Error = Infallible;
 
-        Ok(Self {
-            array,
-            length: values.len(),
-        })
+    fn try_from(values: &[T; LENGTH]) -> Result<Self, Self::Error> {
+        // Build time check
+        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+
+        Ok(Self::from_slice_unchecked(values))
     }
 }
 
 impl<const MAX_LENGTH: usize> TryFrom<u8> for Vec<u8, MAX_LENGTH> {
-    type Error = ();
+    type Error = Infallible;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
+        // Build time check
+        const VALUE_LENGTH: usize = size_of::<u8>();
+        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
-        let length = Self::from_uint(&mut array, u64::from(value))?;
-
-        Ok(Self { array, length })
+        Ok(Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH))
     }
 }
 
 impl<const MAX_LENGTH: usize> TryFrom<u16> for Vec<u8, MAX_LENGTH> {
-    type Error = ();
+    type Error = Infallible;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
+        // Build time check
+        const VALUE_LENGTH: usize = size_of::<u16>();
+        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
-        let length = Self::from_uint(&mut array, u64::from(value))?;
-
-        Ok(Self { array, length })
+        Ok(Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH))
     }
 }
 
 impl<const MAX_LENGTH: usize> TryFrom<u32> for Vec<u8, MAX_LENGTH> {
-    type Error = ();
+    type Error = Infallible;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
+        // Build time check
+        const VALUE_LENGTH: usize = size_of::<u32>();
+        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
-        let length = Self::from_uint(&mut array, u64::from(value))?;
-
-        Ok(Self { array, length })
+        Ok(Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH))
     }
 }
 
 impl<const MAX_LENGTH: usize> TryFrom<u64> for Vec<u8, MAX_LENGTH> {
-    type Error = ();
+    type Error = Infallible;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
-        let mut array = [Self::ARRAY_INIT_VALUE; MAX_LENGTH];
+        // Build time check
+        const VALUE_LENGTH: usize = size_of::<u64>();
+        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
-        let length = Self::from_uint(&mut array, value)?;
-
-        Ok(Self { array, length })
+        Ok(Self::from_uint_unchecked(value, VALUE_LENGTH))
     }
 }
 
@@ -305,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_try_from_buffer() {
+    fn test_vec_try_from_array_as_ref() {
         let vec: Vec<u8, 3> = [1, 2, 3].as_ref().try_into().unwrap();
 
         assert_eq!(3, vec.len());
@@ -316,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_try_from_buffer_shorter_than_vec_size() {
+    fn test_vec_try_from_array_as_ref_shorter_than_vec_size() {
         let vec: Vec<u8, 8> = [1, 2, 3].as_ref().try_into().unwrap();
 
         assert_eq!(3, vec.len());
@@ -327,10 +385,32 @@ mod tests {
     }
 
     #[test]
-    fn test_small_vec_try_from_buffer_should_failed() {
+    fn test_small_vec_try_from_array_as_ref_should_failed() {
         let vec_result: Result<Vec<u8, 1>, _> = [1, 2, 3].as_ref().try_into();
 
         assert!(vec_result.is_err());
+    }
+
+    #[test]
+    fn test_vec_try_from_array() {
+        let vec: Vec<u8, 3> = Vec::try_from(&[1, 2, 3]).unwrap();
+
+        assert_eq!(3, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(None, vec.get(3));
+    }
+
+    #[test]
+    fn test_vec_try_from_array_same_size_as_vec() {
+        let vec: Vec<u8, 3> = [1, 2, 3].try_into().unwrap();
+
+        assert_eq!(3, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(None, vec.get(3));
     }
 
     #[test]
@@ -364,12 +444,12 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_try_from_number_shorter_than_u16() {
+    fn test_vec_try_from_number_shorter_than_real_u16() {
         let vec: Vec<u8, 8> = 0x00ffu16.try_into().unwrap();
 
-        assert_eq!(1, vec.len());
+        assert_eq!(2, vec.len());
         assert_eq!(Some(0xff), vec.get(0));
-        assert_eq!(None, vec.get(1));
+        assert_eq!(Some(0x00), vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
         assert_eq!(None, vec.get(4));
@@ -409,18 +489,27 @@ mod tests {
     }
 
     #[test]
-    fn test_small_vec_try_from_uint_should_failed() {
-        let vec_result: Result<Vec<u8, 0>, _> = 1u8.try_into();
-
-        assert!(vec_result.is_err());
-    }
-
-    #[test]
     fn test_deref_with_empty_vec() {
         let vec = Vec::<u8, 1>::new();
 
         let array = &*vec;
 
         assert_eq!(0, array.len());
+    }
+
+    #[test]
+    fn test_into_iter_vec() {
+        let vec: Vec<u8, 3> = [1, 2, 3].as_ref().try_into().unwrap();
+
+        // Using for loop
+        vec.into_iter().for_each(|value| {
+            assert!(matches!(value, 1..=3));
+        });
+
+        // Using iterator
+        let mut into_iter = vec.into_iter();
+        assert_eq!(Some(&1), into_iter.next());
+        assert_eq!(Some(&2), into_iter.next());
+        assert_eq!(Some(&3), into_iter.next());
     }
 }
