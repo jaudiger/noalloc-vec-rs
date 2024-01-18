@@ -5,7 +5,8 @@
  *
  */
 
-use criterion::black_box;
+use std::hint::black_box;
+
 use criterion::criterion_group;
 use criterion::Criterion;
 use utils::vec::Vec;
@@ -17,19 +18,19 @@ fn vec_benchmarks(c: &mut Criterion) {
 
     // From benchmarks
     group.bench_function("From buffer", |b| {
-        b.iter(|| Vec::<u8, 8>::try_from(black_box(buffer.as_ref())));
+        b.iter(|| black_box(Vec::<u8, 8>::try_from(black_box(buffer.as_ref())).unwrap()));
     });
     group.bench_function("From u8", |b| {
-        b.iter(|| Vec::<u8, 8>::try_from(black_box(0xffu8)));
+        b.iter(|| black_box(Vec::<u8, 8>::try_from(black_box(0xffu8)).unwrap()));
     });
     group.bench_function("From u16", |b| {
-        b.iter(|| Vec::<u8, 8>::try_from(black_box(0xff00u16)));
+        b.iter(|| black_box(Vec::<u8, 8>::try_from(black_box(0xff00u16)).unwrap()));
     });
     group.bench_function("From u32", |b| {
-        b.iter(|| Vec::<u8, 8>::try_from(black_box(0xff00_ff00_u32)));
+        b.iter(|| black_box(Vec::<u8, 8>::try_from(black_box(0xff00_ff00_u32)).unwrap()));
     });
     group.bench_function("From u64", |b| {
-        b.iter(|| Vec::<u8, 8>::try_from(black_box(0xff00_ff00_ff00_ff00_u64)));
+        b.iter(|| black_box(Vec::<u8, 8>::try_from(black_box(0xff00_ff00_ff00_ff00_u64)).unwrap()));
     });
 }
 
