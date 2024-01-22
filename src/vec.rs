@@ -174,17 +174,6 @@ impl<'a, T, const N: usize> IntoIterator for &'a Vec<T, N> {
     }
 }
 
-impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]>
-    for Vec<T, MAX_LENGTH>
-{
-    fn from(values: [T; LENGTH]) -> Self {
-        // Build time check
-        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
-
-        Self::from_array_unchecked(values)
-    }
-}
-
 impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     type Error = ();
 
@@ -195,6 +184,17 @@ impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
         }
 
         Ok(Self::from_slice_unchecked(values))
+    }
+}
+
+impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]>
+    for Vec<T, MAX_LENGTH>
+{
+    fn from(values: [T; LENGTH]) -> Self {
+        // Build time check
+        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+
+        Self::from_array_unchecked(values)
     }
 }
 
@@ -350,8 +350,8 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_try_from_array_as_ref() {
-        let vec: Vec<u8, 3> = [1, 2, 3].as_ref().try_into().unwrap();
+    fn test_vec_try_from_array_as_slice() {
+        let vec: Vec<u8, 3> = [1, 2, 3].as_slice().try_into().unwrap();
 
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
@@ -361,8 +361,8 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_try_from_array_as_ref_shorter_than_vec_size() {
-        let vec: Vec<u8, 8> = [1, 2, 3].as_ref().try_into().unwrap();
+    fn test_vec_try_from_array_as_slice_shorter_than_vec_size() {
+        let vec: Vec<u8, 8> = [1, 2, 3].as_slice().try_into().unwrap();
 
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
@@ -372,8 +372,8 @@ mod tests {
     }
 
     #[test]
-    fn test_small_vec_try_from_array_as_ref_should_failed() {
-        let vec_result: Result<Vec<u8, 1>, _> = [1, 2, 3].as_ref().try_into();
+    fn test_small_vec_try_from_array_as_slice_should_failed() {
+        let vec_result: Result<Vec<u8, 1>, _> = [1, 2, 3].as_slice().try_into();
 
         assert!(vec_result.is_err());
     }
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_into_iter_vec() {
-        let vec: Vec<u8, 3> = [1, 2, 3].as_ref().try_into().unwrap();
+        let vec: Vec<u8, 3> = [1, 2, 3].as_slice().try_into().unwrap();
 
         // Using for loop
         vec.into_iter().for_each(|value| {
