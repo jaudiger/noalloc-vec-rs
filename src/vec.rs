@@ -32,6 +32,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn push(&mut self, value: T) -> Result<(), ()> {
         if self.length < MAX_LENGTH {
             self.push_unchecked(value);
