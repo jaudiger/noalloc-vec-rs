@@ -6,6 +6,7 @@
  */
 
 use core::mem::size_of;
+use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
 use core::ops::Deref;
 use core::ptr;
@@ -106,14 +107,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
-    fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self
-    where
-        T: Copy,
-    {
+    fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self {
         let mut vec = Self::new();
 
-        for byte in &from_array {
-            vec.push_unchecked(*byte);
+        // Do not drop the elements of the array, since we're moving them into the vector
+        for byte in ManuallyDrop::new(from_array).iter() {
+            vec.push_unchecked(unsafe { ptr::read(byte) });
         }
 
         vec
@@ -180,7 +179,7 @@ impl<T, const MAX_LENGTH: usize> Default for Vec<T, MAX_LENGTH> {
     }
 }
 
-impl<T, const N: usize> Drop for Vec<T, N> {
+impl<T, const LENGTH: usize> Drop for Vec<T, LENGTH> {
     fn drop(&mut self) {
         unsafe {
             ptr::drop_in_place(self.as_mut_slice());
@@ -188,7 +187,7 @@ impl<T, const N: usize> Drop for Vec<T, N> {
     }
 }
 
-impl<'a, T, const N: usize> IntoIterator for &'a Vec<T, N> {
+impl<'a, T, const MAX_LENGTH: usize> IntoIterator for &'a Vec<T, MAX_LENGTH> {
     type Item = &'a T;
     type IntoIter = slice::Iter<'a, T>;
 
@@ -196,6 +195,18 @@ impl<'a, T, const N: usize> IntoIterator for &'a Vec<T, N> {
         self.iter()
     }
 }
+
+impl<TA, TB, const MAX_LENGTH_A: usize, const MAX_LENGTH_B: usize> PartialEq<Vec<TB, MAX_LENGTH_B>>
+    for Vec<TA, MAX_LENGTH_A>
+where
+    TA: PartialEq<TB>,
+{
+    fn eq(&self, other: &Vec<TB, MAX_LENGTH_B>) -> bool {
+        <[TA]>::eq(self, &**other)
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> Eq for Vec<T, MAX_LENGTH> where T: Eq {}
 
 impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     type Error = ();
@@ -210,9 +221,7 @@ impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     }
 }
 
-impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]>
-    for Vec<T, MAX_LENGTH>
-{
+impl<T, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]> for Vec<T, MAX_LENGTH> {
     fn from(values: [T; LENGTH]) -> Self {
         // Build time assertion
         Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
@@ -280,41 +289,41 @@ impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
     }
 }
 
-impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u8
+impl<T, const MAX_LENGTH: usize> From<&Vec<T, MAX_LENGTH>> for u8
 where
     T: Into<Self>,
 {
     #[allow(clippy::cast_possible_truncation)]
-    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+    fn from(value: &Vec<T, MAX_LENGTH>) -> Self {
         value.to_uint() as Self
     }
 }
 
-impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u16
+impl<T, const MAX_LENGTH: usize> From<&Vec<T, MAX_LENGTH>> for u16
 where
     T: Into<u8>,
 {
     #[allow(clippy::cast_possible_truncation)]
-    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+    fn from(value: &Vec<T, MAX_LENGTH>) -> Self {
         value.to_uint() as Self
     }
 }
 
-impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u32
+impl<T, const MAX_LENGTH: usize> From<&Vec<T, MAX_LENGTH>> for u32
 where
     T: Into<u8>,
 {
     #[allow(clippy::cast_possible_truncation)]
-    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+    fn from(value: &Vec<T, MAX_LENGTH>) -> Self {
         value.to_uint() as Self
     }
 }
 
-impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u64
+impl<T, const MAX_LENGTH: usize> From<&Vec<T, MAX_LENGTH>> for u64
 where
     T: Into<u8>,
 {
-    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+    fn from(value: &Vec<T, MAX_LENGTH>) -> Self {
         value.to_uint() as Self
     }
 }
@@ -540,7 +549,7 @@ mod tests {
     #[test]
     fn test_u8_from_vec() {
         let vec: Vec<u8, 1> = Vec::from([0x2A]);
-        let value = u8::from(vec);
+        let value = u8::from(&vec);
 
         assert_eq!(42, value);
     }
@@ -548,7 +557,7 @@ mod tests {
     #[test]
     fn test_u16_from_vec() {
         let vec: Vec<u8, 2> = Vec::from([0xD2, 0x04]);
-        let value = u16::from(vec);
+        let value = u16::from(&vec);
 
         assert_eq!(1234, value);
     }
@@ -556,7 +565,7 @@ mod tests {
     #[test]
     fn test_u32_from_vec() {
         let vec: Vec<u8, 4> = Vec::from([0x52, 0xAA, 0x08, 0x00]);
-        let value = u32::from(vec);
+        let value = u32::from(&vec);
 
         assert_eq!(567_890, value);
     }
@@ -564,7 +573,7 @@ mod tests {
     #[test]
     fn test_u64_from_vec() {
         let vec: Vec<u8, 8> = Vec::from([0x08, 0x1A, 0x99, 0xBE, 0x1C, 0x00, 0x00, 0x00]);
-        let value = u64::from(vec);
+        let value = u64::from(&vec);
 
         assert_eq!(123_456_789_000, value);
     }
