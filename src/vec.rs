@@ -558,7 +558,7 @@ mod tests {
         let vec: Vec<u8, 4> = Vec::from([0x52, 0xAA, 0x08, 0x00]);
         let value = u32::from(vec);
 
-        assert_eq!(567890, value);
+        assert_eq!(567_890, value);
     }
 
     #[test]
@@ -566,7 +566,7 @@ mod tests {
         let vec: Vec<u8, 8> = Vec::from([0x08, 0x1A, 0x99, 0xBE, 0x1C, 0x00, 0x00, 0x00]);
         let value = u64::from(vec);
 
-        assert_eq!(123456789000, value);
+        assert_eq!(123_456_789_000, value);
     }
 
     #[test]
