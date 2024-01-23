@@ -214,7 +214,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]>
     for Vec<T, MAX_LENGTH>
 {
     fn from(values: [T; LENGTH]) -> Self {
-        // Build time check
+        // Build time assertion
         Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
 
         Self::from_array_unchecked(values)
@@ -225,7 +225,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&[T; LENGTH]>
     for Vec<T, MAX_LENGTH>
 {
     fn from(values: &[T; LENGTH]) -> Self {
-        // Build time check
+        // Build time assertion
         Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
 
         Self::from_slice_unchecked(values)
@@ -234,7 +234,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&[T; LENGTH]>
 
 impl<const MAX_LENGTH: usize> From<u8> for Vec<u8, MAX_LENGTH> {
     fn from(value: u8) -> Self {
-        // Build time check
+        // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u8>();
         Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
@@ -244,7 +244,7 @@ impl<const MAX_LENGTH: usize> From<u8> for Vec<u8, MAX_LENGTH> {
 
 impl<const MAX_LENGTH: usize> From<u16> for Vec<u8, MAX_LENGTH> {
     fn from(value: u16) -> Self {
-        // Build time check
+        // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u16>();
         Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
@@ -254,7 +254,7 @@ impl<const MAX_LENGTH: usize> From<u16> for Vec<u8, MAX_LENGTH> {
 
 impl<const MAX_LENGTH: usize> From<u32> for Vec<u8, MAX_LENGTH> {
     fn from(value: u32) -> Self {
-        // Build time check
+        // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u32>();
         Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
@@ -264,7 +264,7 @@ impl<const MAX_LENGTH: usize> From<u32> for Vec<u8, MAX_LENGTH> {
 
 impl<const MAX_LENGTH: usize> From<u64> for Vec<u8, MAX_LENGTH> {
     fn from(value: u64) -> Self {
-        // Build time check
+        // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u64>();
         Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
 
