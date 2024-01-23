@@ -77,10 +77,14 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn get(&self, index: usize) -> Option<T> {
         if index < self.length {
-            Some(unsafe { self.array.get_unchecked(index).as_ptr().read() })
+            Some(self.get_unchecked(index))
         } else {
             None
         }
+    }
+
+    fn get_unchecked(&self, index: usize) -> T {
+        unsafe { self.array.get_unchecked(index).as_ptr().read() }
     }
 
     #[must_use]
@@ -149,6 +153,24 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
 
         vec
+    }
+
+    #[must_use]
+    fn to_uint(&self) -> u64
+    where
+        T: Into<u8>,
+    {
+        let mut value = 0;
+        let mut index = 0;
+        while index < self.len() {
+            let byte = self.get_unchecked(index).into();
+
+            value |= u64::from(byte) << (index * 8);
+
+            index += 1;
+        }
+
+        value
     }
 }
 
@@ -255,6 +277,45 @@ impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u8
+where
+    T: Into<Self>,
+{
+    #[allow(clippy::cast_possible_truncation)]
+    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+        value.to_uint() as Self
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u16
+where
+    T: Into<u8>,
+{
+    #[allow(clippy::cast_possible_truncation)]
+    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+        value.to_uint() as Self
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u32
+where
+    T: Into<u8>,
+{
+    #[allow(clippy::cast_possible_truncation)]
+    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+        value.to_uint() as Self
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> From<Vec<T, MAX_LENGTH>> for u64
+where
+    T: Into<u8>,
+{
+    fn from(value: Vec<T, MAX_LENGTH>) -> Self {
+        value.to_uint() as Self
     }
 }
 
@@ -474,6 +535,38 @@ mod tests {
         assert_eq!(Some(0xff), vec.get(5));
         assert_eq!(Some(0x00), vec.get(6));
         assert_eq!(Some(0xff), vec.get(7));
+    }
+
+    #[test]
+    fn test_u8_from_vec() {
+        let vec: Vec<u8, 1> = Vec::from([0x2A]);
+        let value = u8::from(vec);
+
+        assert_eq!(42, value);
+    }
+
+    #[test]
+    fn test_u16_from_vec() {
+        let vec: Vec<u8, 2> = Vec::from([0xD2, 0x04]);
+        let value = u16::from(vec);
+
+        assert_eq!(1234, value);
+    }
+
+    #[test]
+    fn test_u32_from_vec() {
+        let vec: Vec<u8, 4> = Vec::from([0x52, 0xAA, 0x08, 0x00]);
+        let value = u32::from(vec);
+
+        assert_eq!(567890, value);
+    }
+
+    #[test]
+    fn test_u64_from_vec() {
+        let vec: Vec<u8, 8> = Vec::from([0x08, 0x1A, 0x99, 0xBE, 0x1C, 0x00, 0x00, 0x00]);
+        let value = u64::from(vec);
+
+        assert_eq!(123456789000, value);
     }
 
     #[test]
