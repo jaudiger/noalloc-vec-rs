@@ -84,6 +84,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
+    #[must_use]
     fn get_unchecked(&self, index: usize) -> T {
         unsafe { self.array.get_unchecked(index).as_ptr().read() }
     }
@@ -107,6 +108,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
+    #[must_use]
     fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self {
         let mut vec = Self::new();
 
@@ -118,6 +120,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         vec
     }
 
+    #[must_use]
     fn from_slice_unchecked(from_slice: &[T]) -> Self
     where
         T: Copy,
