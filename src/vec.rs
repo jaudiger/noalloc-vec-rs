@@ -48,7 +48,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.length += 1;
     }
 
-    #[allow(clippy::result_unit_err)]
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
@@ -60,6 +59,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     #[allow(clippy::result_unit_err)]
     pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
+        // Make sure all the previous bytes are initialized before reading the array
         if index < MAX_LENGTH {
             self.array[index].write(value);
             if index >= self.length {
@@ -76,14 +76,15 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     where
         T: Clone,
     {
+        // Make sure all the previous bytes are initialized before reading the array
         if index + value.len() <= MAX_LENGTH {
             let mut buffer_index = index;
             for byte in value {
                 self.array[buffer_index].write(byte.clone());
                 buffer_index += 1;
-                if buffer_index >= self.length {
-                    self.length = buffer_index;
-                }
+            }
+            if buffer_index >= self.length {
+                self.length = buffer_index;
             }
             Ok(())
         } else {
@@ -105,6 +106,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub const fn len(&self) -> usize {
         self.length
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn remaining_len(&self) -> usize {
+        MAX_LENGTH - self.length
     }
 
     #[inline]
@@ -139,11 +146,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         } else {
             None
         }
-    }
-
-    #[must_use]
-    pub const fn left_capacity(&self) -> usize {
-        MAX_LENGTH - self.length
     }
 
     #[must_use]
@@ -381,14 +383,14 @@ where
 
 impl<'a, T, const N: usize> Extend<&'a T> for Vec<T, N>
 where
-    T: 'a + Copy,
+    T: 'a + Clone,
 {
     // Check left capacity before using this method
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = &'a T>,
     {
-        self.extend(iter.into_iter().copied());
+        self.extend(iter.into_iter().cloned());
     }
 }
 
