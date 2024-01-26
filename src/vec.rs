@@ -21,6 +21,18 @@ pub struct Vec<T, const MAX_LENGTH: usize> {
     length: usize,
 }
 
+pub struct IntoIter<T, const MAX_LENGTH: usize> {
+    vec: Vec<T, MAX_LENGTH>,
+    next: usize,
+}
+
+impl<T, const MAX_LENGTH: usize> IntoIter<T, MAX_LENGTH> {
+    #[must_use]
+    pub fn new(vec: Vec<T, MAX_LENGTH>) -> Self {
+        Self { vec, next: 0 }
+    }
+}
+
 impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     const ARRAY_INIT_VALUE: MaybeUninit<T> = MaybeUninit::uninit();
 
@@ -249,6 +261,30 @@ impl<'a, T, const MAX_LENGTH: usize> IntoIterator for &'a Vec<T, MAX_LENGTH> {
     }
 }
 
+impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next < self.vec.len() {
+            let value = self.vec.get_unchecked(self.next);
+            self.next += 1;
+
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> IntoIterator for Vec<T, MAX_LENGTH> {
+    type Item = T;
+    type IntoIter = IntoIter<T, MAX_LENGTH>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter::new(self)
+    }
+}
+
 impl<TA, TB, const MAX_LENGTH_A: usize, const MAX_LENGTH_B: usize> PartialEq<Vec<TB, MAX_LENGTH_B>>
     for Vec<TA, MAX_LENGTH_A>
 where
@@ -391,6 +427,19 @@ where
         I: IntoIterator<Item = &'a T>,
     {
         self.extend(iter.into_iter().copied());
+    }
+}
+
+impl<T, const N: usize> Extend<T> for Vec<T, N>
+where
+    T: Copy,
+{
+    // Check left capacity before using this method
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        self.extend(iter);
     }
 }
 
@@ -703,18 +752,23 @@ mod tests {
     }
 
     #[test]
-    fn test_into_iter_vec() {
+    fn test_into_iter_vec_with_for_loop() {
         let vec: Vec<u8, 3> = [1, 2, 3].as_slice().try_into().unwrap();
 
         // Using for loop
         vec.into_iter().for_each(|value| {
             assert!(matches!(value, 1..=3));
         });
+    }
+
+    #[test]
+    fn test_into_iter_vec_with_iterator() {
+        let vec: Vec<u8, 3> = [1, 2, 3].as_slice().try_into().unwrap();
 
         // Using iterator
         let mut into_iter = vec.into_iter();
-        assert_eq!(Some(&1), into_iter.next());
-        assert_eq!(Some(&2), into_iter.next());
-        assert_eq!(Some(&3), into_iter.next());
+        assert_eq!(Some(1), into_iter.next());
+        assert_eq!(Some(2), into_iter.next());
+        assert_eq!(Some(3), into_iter.next());
     }
 }
