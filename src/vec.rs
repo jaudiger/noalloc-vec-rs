@@ -74,13 +74,13 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[allow(clippy::result_unit_err)]
     pub fn write_slice(&mut self, index: usize, value: &[T]) -> Result<(), ()>
     where
-        T: Clone,
+        T: Copy,
     {
         // Make sure all the previous bytes are initialized before reading the array
         if index + value.len() <= MAX_LENGTH {
             let mut buffer_index = index;
             for byte in value {
-                self.array[buffer_index].write(byte.clone());
+                self.array[buffer_index].write(*byte);
                 buffer_index += 1;
             }
             if buffer_index >= self.length {
@@ -383,14 +383,14 @@ where
 
 impl<'a, T, const N: usize> Extend<&'a T> for Vec<T, N>
 where
-    T: 'a + Clone,
+    T: 'a + Copy,
 {
     // Check left capacity before using this method
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = &'a T>,
     {
-        self.extend(iter.into_iter().cloned());
+        self.extend(iter.into_iter().copied());
     }
 }
 
