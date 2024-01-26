@@ -48,6 +48,49 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.length += 1;
     }
 
+    #[allow(clippy::result_unit_err)]
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for elem in iter {
+            self.push_unchecked(elem);
+        }
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
+        if index < MAX_LENGTH {
+            self.array[index].write(value);
+            if index >= self.length {
+                self.length = index + 1;
+            }
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn write_slice(&mut self, index: usize, value: &[T]) -> Result<(), ()>
+    where
+        T: Clone,
+    {
+        if index + value.len() <= MAX_LENGTH {
+            let mut buffer_index = index;
+            for byte in value {
+                self.array[buffer_index].write(byte.clone());
+                buffer_index += 1;
+                if buffer_index >= self.length {
+                    self.length = buffer_index;
+                }
+            }
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
     #[must_use]
     pub fn pop(&mut self) -> Option<T> {
         if self.length > 0 {
@@ -96,6 +139,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         } else {
             None
         }
+    }
+
+    #[must_use]
+    pub const fn left_capacity(&self) -> usize {
+        MAX_LENGTH - self.length
     }
 
     #[must_use]
@@ -331,6 +379,19 @@ where
     }
 }
 
+impl<'a, T, const N: usize> Extend<&'a T> for Vec<T, N>
+where
+    T: 'a + Copy,
+{
+    // Check left capacity before using this method
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = &'a T>,
+    {
+        self.extend(iter.into_iter().copied());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::vec::Vec;
@@ -368,6 +429,55 @@ mod tests {
         assert_eq!(Some(1), vec.pop());
         assert_eq!(0, vec.len());
         assert_eq!(None, vec.pop());
+    }
+
+    #[test]
+    fn test_vec_push_slice() {
+        let mut vec = Vec::<u8, 3>::new();
+        let array: [u8; 3] = [1, 2, 3];
+
+        assert_eq!((), vec.extend(array.iter().copied()));
+        assert_eq!(3, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(None, vec.get(3));
+    }
+
+    #[test]
+    fn test_vec_write() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        assert_eq!(Ok(()), vec.write(0, 1));
+        assert_eq!(1, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(None, vec.get(1));
+    }
+
+    #[test]
+    fn test_vec_write_out_of_bound() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        assert_eq!(Err(()), vec.write(3, 1));
+    }
+
+    #[test]
+    fn test_vec_write_slice() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        assert_eq!(Ok(()), vec.write_slice(0, &[1, 2, 3]));
+        assert_eq!(3, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(None, vec.get(3));
+    }
+
+    #[test]
+    fn test_vec_write_slice_out_of_bound() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        assert_eq!(Err(()), vec.write_slice(1, &[1, 2, 3]));
     }
 
     #[test]
