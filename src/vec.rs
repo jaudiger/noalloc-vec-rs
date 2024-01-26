@@ -487,7 +487,7 @@ mod tests {
         let mut vec = Vec::<u8, 3>::new();
         let array: [u8; 3] = [1, 2, 3];
 
-        assert_eq!((), vec.extend(array.iter().copied()));
+        vec.extend(array.iter().copied());
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
         assert_eq!(Some(2), vec.get(1));
