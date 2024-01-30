@@ -55,7 +55,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    fn push_unchecked(&mut self, value: T) {
+    pub fn push_unchecked(&mut self, value: T) {
         self.array[self.length].write(value);
         self.length += 1;
     }
@@ -147,7 +147,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    fn get_unchecked(&self, index: usize) -> T {
+    pub fn get_unchecked(&self, index: usize) -> T {
         unsafe { self.array.get_unchecked(index).as_ptr().read() }
     }
 
