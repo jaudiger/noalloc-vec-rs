@@ -60,26 +60,37 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.length += 1;
     }
 
-    fn extend<I>(&mut self, iter: I)
-    where
-        I: IntoIterator<Item = T>,
-    {
-        for elem in iter {
-            self.push_unchecked(elem);
+    #[must_use]
+    pub fn pop(&mut self) -> Option<T> {
+        if self.length > 0 {
+            Some(self.pop_unchecked())
+        } else {
+            None
         }
+    }
+
+    #[must_use]
+    pub fn pop_unchecked(&mut self) -> T {
+        self.length -= 1;
+        unsafe { self.array.get_unchecked(self.length).as_ptr().read() }
     }
 
     #[allow(clippy::result_unit_err)]
     pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
         // Make sure all the previous bytes are initialized before reading the array
         if index < MAX_LENGTH {
-            self.array[index].write(value);
-            if index >= self.length {
-                self.length = index + 1;
-            }
+            self.write_unchecked(index, value);
+
             Ok(())
         } else {
             Err(())
+        }
+    }
+
+    pub fn write_unchecked(&mut self, index: usize, value: T) {
+        self.array[index].write(value);
+        if index >= self.length {
+            self.length = index + 1;
         }
     }
 
@@ -90,51 +101,26 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     {
         // Make sure all the previous bytes are initialized before reading the array
         if index + value.len() <= MAX_LENGTH {
-            let mut buffer_index = index;
-            for byte in value {
-                self.array[buffer_index].write(*byte);
-                buffer_index += 1;
-            }
-            if buffer_index >= self.length {
-                self.length = buffer_index;
-            }
+            self.write_slice_unchecked(index, value);
+
             Ok(())
         } else {
             Err(())
         }
     }
 
-    #[must_use]
-    pub fn pop(&mut self) -> Option<T> {
-        if self.length > 0 {
-            self.length -= 1;
-            Some(unsafe { self.array.get_unchecked(self.length).as_ptr().read() })
-        } else {
-            None
+    pub fn write_slice_unchecked(&mut self, index: usize, value: &[T])
+    where
+        T: Copy,
+    {
+        let mut buffer_index = index;
+        for byte in value {
+            self.array[buffer_index].write(*byte);
+            buffer_index += 1;
         }
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn len(&self) -> usize {
-        self.length
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn remaining_len(&self) -> usize {
-        MAX_LENGTH - self.length
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.length == 0
-    }
-
-    #[inline]
-    pub fn clear(&mut self) {
-        self.length = 0;
+        if buffer_index >= self.length {
+            self.length = buffer_index;
+        }
     }
 
     #[must_use]
@@ -154,9 +140,23 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            Some(unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() })
+            Some(self.get_mut_unchecked(index))
         } else {
             None
+        }
+    }
+
+    #[must_use]
+    pub fn get_mut_unchecked(&mut self, index: usize) -> T {
+        unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() }
+    }
+
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for elem in iter {
+            self.push_unchecked(elem);
         }
     }
 
@@ -235,6 +235,29 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
 
         value
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.length
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn remaining_len(&self) -> usize {
+        MAX_LENGTH - self.length
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        self.length = 0;
     }
 }
 
@@ -473,6 +496,16 @@ mod tests {
     }
 
     #[test]
+    fn test_vec_push_unchecked() {
+        let mut vec = Vec::<u8, 1>::new();
+
+        vec.push_unchecked(1);
+
+        assert_eq!(1, vec.len());
+        assert!(!vec.is_empty());
+    }
+
+    #[test]
     fn test_vec_pop() {
         let mut vec = Vec::<u8, 1>::new();
 
@@ -483,16 +516,13 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_push_slice() {
-        let mut vec = Vec::<u8, 3>::new();
-        let array: [u8; 3] = [1, 2, 3];
+    fn test_vec_pop_unchecked() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
 
-        vec.extend(array.iter().copied());
-        assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
-        assert_eq!(None, vec.get(3));
+        assert_eq!(1, vec.pop_unchecked());
+        assert_eq!(0, vec.len());
+        assert_eq!(None, vec.pop());
     }
 
     #[test]
@@ -510,6 +540,17 @@ mod tests {
         let mut vec = Vec::<u8, 3>::new();
 
         assert_eq!(Err(()), vec.write(3, 1));
+    }
+
+    #[test]
+    fn test_vec_write_unchecked() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        vec.write_unchecked(0, 1);
+
+        assert_eq!(1, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(None, vec.get(1));
     }
 
     #[test]
@@ -532,6 +573,88 @@ mod tests {
     }
 
     #[test]
+    fn test_vec_write_slice_unchecked() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        vec.write_slice_unchecked(0, &[1, 2, 3]);
+
+        assert_eq!(3, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(None, vec.get(3));
+    }
+
+    #[test]
+    fn test_vec_get() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
+
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(1, vec.len());
+        assert_eq!(None, vec.get(1));
+    }
+
+    #[test]
+    fn test_vec_get_out_of_bound() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
+
+        assert_eq!(None, vec.get(1));
+        assert_eq!(1, vec.len());
+    }
+
+    #[test]
+    fn test_vec_get_unchecked() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
+
+        assert_eq!(1, vec.get_unchecked(0));
+        assert_eq!(1, vec.len());
+    }
+
+    #[test]
+    fn test_vec_get_mut() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
+
+        assert_eq!(Some(1), vec.get_mut(0));
+        assert_eq!(1, vec.len());
+        assert_eq!(None, vec.get_mut(1));
+    }
+
+    #[test]
+    fn test_vec_get_mut_out_of_bound() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
+
+        assert_eq!(None, vec.get_mut(1));
+        assert_eq!(1, vec.len());
+    }
+
+    #[test]
+    fn test_vec_get_mut_unchecked() {
+        let mut vec = Vec::<u8, 1>::new();
+        let _ = vec.push(1);
+
+        assert_eq!(1, vec.get_mut_unchecked(0));
+        assert_eq!(1, vec.len());
+    }
+
+    #[test]
+    fn test_vec_extend() {
+        let mut vec = Vec::<u8, 3>::new();
+        let array: [u8; 3] = [1, 2, 3];
+
+        vec.extend(array.iter().copied());
+        assert_eq!(3, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(None, vec.get(3));
+    }
+
+    #[test]
     fn test_vec_clear() {
         let mut vec = Vec::<u8, 1>::new();
 
@@ -542,46 +665,6 @@ mod tests {
 
         assert_eq!(0, vec.len());
         assert!(vec.is_empty());
-    }
-
-    #[test]
-    fn test_vec_get() {
-        let mut vec = Vec::<u8, 1>::new();
-
-        assert_eq!(Ok(()), vec.push(1));
-
-        assert_eq!(1, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(None, vec.get(1));
-    }
-
-    #[test]
-    fn test_vec_get_out_of_bound() {
-        let mut vec = Vec::<u8, 1>::new();
-
-        assert_eq!(Ok(()), vec.push(1));
-
-        assert_eq!(None, vec.get(1));
-    }
-
-    #[test]
-    fn test_vec_get_mut() {
-        let mut vec = Vec::<u8, 1>::new();
-
-        assert_eq!(Ok(()), vec.push(1));
-
-        assert_eq!(1, vec.len());
-        assert_eq!(Some(1), vec.get_mut(0));
-        assert_eq!(None, vec.get_mut(1));
-    }
-
-    #[test]
-    fn test_vec_get_mut_out_of_bound() {
-        let mut vec = Vec::<u8, 1>::new();
-
-        assert_eq!(Ok(()), vec.push(1));
-
-        assert_eq!(None, vec.get_mut(1));
     }
 
     #[test]
