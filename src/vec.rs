@@ -77,8 +77,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     #[allow(clippy::result_unit_err)]
     pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
-        // Make sure all the previous bytes are initialized before reading the array
-        if index < MAX_LENGTH {
+        if index <= self.length && index < MAX_LENGTH {
             self.write_unchecked(index, value);
 
             Ok(())
@@ -88,6 +87,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     pub fn write_unchecked(&mut self, index: usize, value: T) {
+        // Make sure all the previous bytes are initialized before reading the array
         self.array[index].write(value);
         if index >= self.length {
             self.length = index + 1;
@@ -99,8 +99,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     where
         T: Copy,
     {
-        // Make sure all the previous bytes are initialized before reading the array
-        if index + value.len() <= MAX_LENGTH {
+        if index <= self.length && index + value.len() <= MAX_LENGTH {
             self.write_slice_unchecked(index, value);
 
             Ok(())
@@ -109,17 +108,18 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    pub fn write_slice_unchecked(&mut self, index: usize, value: &[T])
+    pub fn write_slice_unchecked(&mut self, mut index: usize, value: &[T])
     where
         T: Copy,
     {
-        let mut buffer_index = index;
+        // Make sure all the previous bytes are initialized before reading the array
         for byte in value {
-            self.array[buffer_index].write(*byte);
-            buffer_index += 1;
+            self.array[index].write(*byte);
+            index += 1;
         }
-        if buffer_index >= self.length {
-            self.length = buffer_index;
+
+        if index >= self.length {
+            self.length = index;
         }
     }
 
