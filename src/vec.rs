@@ -9,6 +9,7 @@ use core::mem::size_of;
 use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
 use core::ops::Deref;
+use core::ops::DerefMut;
 use core::ptr;
 use core::slice;
 use core::usize;
@@ -123,6 +124,43 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
+    pub fn insert(&mut self, index: usize, value: T) -> Result<(), ()> {
+        // Check if the element can be inserted
+        if index > self.length || self.length + 1 > MAX_LENGTH {
+            Err(())
+        } else {
+            // Shift all the elements after the index to the right
+            unsafe {
+                let start_slice = self.as_mut_ptr().add(index);
+                ptr::copy(start_slice, start_slice.add(1), self.length - index);
+                ptr::write(start_slice, value);
+            }
+
+            self.length += 1;
+
+            Ok(())
+        }
+    }
+
+    #[must_use]
+    pub fn remove(&mut self, index: usize) -> Option<T> {
+        if index < self.length {
+            let value = unsafe { ptr::read(self.as_ptr().add(index)) };
+
+            // Shift all the elements after the index to the left
+            unsafe {
+                let start_slice = self.as_mut_ptr().add(index);
+                ptr::copy(start_slice.add(1), start_slice, self.length - index - 1);
+            }
+
+            self.length -= 1;
+
+            Some(value)
+        } else {
+            None
+        }
+    }
+
     #[must_use]
     pub fn get(&self, index: usize) -> Option<T> {
         if index < self.length {
@@ -149,6 +187,27 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn get_mut_unchecked(&mut self, index: usize) -> T {
         unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() }
+    }
+
+    pub fn truncate(&mut self, new_length: usize) {
+        if new_length >= self.length {
+            return;
+        }
+
+        // Update the length
+        let remaining_len = self.length - new_length;
+        self.length = new_length;
+
+        // Drop the old elements that are outside of the new length
+        let start_slice = unsafe { self.as_mut_ptr().add(new_length) };
+        let slice_to_drop = ptr::slice_from_raw_parts_mut(start_slice, remaining_len);
+        unsafe {
+            ptr::drop_in_place(slice_to_drop);
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.truncate(0);
     }
 
     fn extend<I>(&mut self, iter: I)
@@ -254,11 +313,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     pub const fn is_empty(&self) -> bool {
         self.length == 0
     }
-
-    #[inline]
-    pub fn clear(&mut self) {
-        self.length = 0;
-    }
 }
 
 impl<T, const MAX_LENGTH: usize> Default for Vec<T, MAX_LENGTH> {
@@ -295,6 +349,16 @@ impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
             Some(value)
         } else {
             None
+        }
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> Drop for IntoIter<T, MAX_LENGTH> {
+    fn drop(&mut self) {
+        unsafe {
+            // Drop all the remaining elements, and set the length to 0
+            ptr::drop_in_place(&mut self.vec.as_mut_slice()[self.next..]);
+            self.vec.length = 0;
         }
     }
 }
@@ -398,6 +462,12 @@ impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> DerefMut for Vec<T, MAX_LENGTH> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        self.as_mut_slice()
     }
 }
 
@@ -586,6 +656,64 @@ mod tests {
     }
 
     #[test]
+    fn test_vec_insert_at_start() {
+        let mut vec = Vec::<u8, 3>::new();
+
+        assert_eq!(Ok(()), vec.insert(0, 1));
+        assert_eq!(1, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(None, vec.get(1));
+    }
+
+    #[test]
+    fn test_vec_insert_in_middle() {
+        let mut vec = Vec::<u8, 4>::from([1, 2, 3]);
+
+        assert_eq!(Ok(()), vec.insert(1, 4));
+        assert_eq!(4, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(4), vec.get(1));
+        assert_eq!(Some(2), vec.get(2));
+        assert_eq!(Some(3), vec.get(3));
+    }
+
+    #[test]
+    fn test_vec_insert_out_of_bound() {
+        let mut vec = Vec::<u8, 0>::new();
+
+        assert_eq!(Err(()), vec.insert(1, 1));
+    }
+
+    #[test]
+    fn test_vec_remove() {
+        let mut vec = Vec::<u8, 3>::from([1, 2, 3]);
+
+        assert_eq!(Some(2), vec.remove(1));
+        assert_eq!(2, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(3), vec.get(1));
+        assert_eq!(None, vec.get(2));
+    }
+
+    #[test]
+    fn test_vec_remove_last() {
+        let mut vec = Vec::<u8, 3>::from([1, 2, 3]);
+
+        assert_eq!(Some(3), vec.remove(2));
+        assert_eq!(2, vec.len());
+        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(None, vec.get(2));
+    }
+
+    #[test]
+    fn test_vec_remove_out_of_bound() {
+        let mut vec = Vec::<u8, 1>::new();
+
+        assert_eq!(None, vec.remove(1));
+    }
+
+    #[test]
     fn test_vec_get() {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
@@ -652,6 +780,45 @@ mod tests {
         assert_eq!(Some(2), vec.get(1));
         assert_eq!(Some(3), vec.get(2));
         assert_eq!(None, vec.get(3));
+    }
+
+    #[test]
+    fn test_vec_truncate() {
+        let mut vec = Vec::<u8, 1>::new();
+
+        assert_eq!(Ok(()), vec.push(1));
+        assert!(!vec.is_empty());
+
+        vec.truncate(0);
+
+        assert_eq!(0, vec.len());
+        assert!(vec.is_empty());
+    }
+
+    #[test]
+    fn test_vec_truncate_with_new_length_equal_current_length() {
+        let mut vec = Vec::<u8, 1>::new();
+
+        assert_eq!(Ok(()), vec.push(1));
+        assert!(!vec.is_empty());
+
+        vec.truncate(1);
+
+        assert_eq!(1, vec.len());
+        assert!(!vec.is_empty());
+    }
+
+    #[test]
+    fn test_vec_truncate_with_new_length_superior_to_current_length() {
+        let mut vec = Vec::<u8, 1>::new();
+
+        assert_eq!(Ok(()), vec.push(1));
+        assert!(!vec.is_empty());
+
+        vec.truncate(2);
+
+        assert_eq!(1, vec.len());
+        assert!(!vec.is_empty());
     }
 
     #[test]
