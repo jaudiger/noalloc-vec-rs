@@ -206,6 +206,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.truncate(0);
     }
