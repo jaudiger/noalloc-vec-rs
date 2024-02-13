@@ -124,6 +124,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn insert(&mut self, index: usize, value: T) -> Result<(), ()> {
         // Check if the element can be inserted
         if index > self.length || self.length + 1 > MAX_LENGTH {
