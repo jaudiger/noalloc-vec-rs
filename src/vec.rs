@@ -37,7 +37,6 @@ impl<T, const MAX_LENGTH: usize> IntoIter<T, MAX_LENGTH> {
 impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     const ARRAY_INIT_VALUE: MaybeUninit<T> = MaybeUninit::uninit();
 
-    #[inline]
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -207,7 +206,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    #[inline]
     pub fn clear(&mut self) {
         self.truncate(0);
     }
@@ -302,19 +300,16 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         value
     }
 
-    #[inline]
     #[must_use]
     pub const fn len(&self) -> usize {
         self.length
     }
 
-    #[inline]
     #[must_use]
     pub const fn remaining_len(&self) -> usize {
         MAX_LENGTH - self.length
     }
 
-    #[inline]
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.length == 0
