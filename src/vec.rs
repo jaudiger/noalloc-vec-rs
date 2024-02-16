@@ -258,16 +258,19 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    fn from_uint_unchecked(from_value: u64, max_length: usize) -> Self
+    fn from_uint_unchecked(mut value: u64, max_length: usize) -> Self
     where
         T: From<u8>,
     {
         let mut vec = Self::new();
 
-        let mut value = from_value;
+        let mut real_length = 0;
         let mut index = 0;
         while index < max_length {
             let byte = (value & 0xff) as u8;
+            if byte != 0 {
+                real_length = index + 1;
+            }
 
             vec.push_unchecked(byte.into());
 
@@ -277,6 +280,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
             index += 1;
         }
 
+        vec.length = real_length;
         vec
     }
 
@@ -935,9 +939,9 @@ mod tests {
     fn test_vec_from_number_shorter_than_real_u16() {
         let vec: Vec<u8, 8> = 0x00ffu16.into();
 
-        assert_eq!(2, vec.len());
+        assert_eq!(1, vec.len());
         assert_eq!(Some(0xff), vec.get(0));
-        assert_eq!(Some(0x00), vec.get(1));
+        assert_eq!(None, vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
         assert_eq!(None, vec.get(4));
