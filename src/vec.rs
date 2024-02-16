@@ -512,7 +512,7 @@ where
     }
 }
 
-impl<'a, T, const N: usize> Extend<&'a T> for Vec<T, N>
+impl<'a, T, const MAX_LENGTH: usize> Extend<&'a T> for Vec<T, MAX_LENGTH>
 where
     T: 'a + Copy,
 {
@@ -525,7 +525,7 @@ where
     }
 }
 
-impl<T, const N: usize> Extend<T> for Vec<T, N>
+impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH>
 where
     T: Copy,
 {
@@ -535,6 +535,20 @@ where
         I: IntoIterator<Item = T>,
     {
         self.extend(iter);
+    }
+}
+
+impl<T, const MAX_LENGTH: usize> Clone for Vec<T, MAX_LENGTH>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        let mut new_vec = Self::new();
+        for elem in self {
+            new_vec.push_unchecked(elem.clone());
+        }
+
+        new_vec
     }
 }
 
