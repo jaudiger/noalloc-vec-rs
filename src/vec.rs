@@ -398,6 +398,17 @@ impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     }
 }
 
+impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&Vec<T, LENGTH>>
+    for Vec<T, MAX_LENGTH>
+{
+    fn from(values: &Vec<T, LENGTH>) -> Self {
+        // Build time assertion
+        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+
+        Self::from_slice_unchecked(values)
+    }
+}
+
 impl<T, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]> for Vec<T, MAX_LENGTH> {
     fn from(values: [T; LENGTH]) -> Self {
         // Build time assertion
