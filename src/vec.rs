@@ -56,6 +56,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     pub fn push_unchecked(&mut self, value: T) {
+        // FIXME: Calling 'write_unchecked' should be enough
+        // But due to an inlining issue, it introduces more bytes,
+        // than calling manually its content
+        // self.write_unchecked(self.length, value);
+
         self.array[self.length].write(value);
         self.length += 1;
     }
@@ -72,7 +77,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn pop_unchecked(&mut self) -> T {
         self.length -= 1;
-        unsafe { self.array.get_unchecked(self.length).as_ptr().read() }
+        self.get_unchecked(self.length)
     }
 
     #[allow(clippy::result_unit_err)]
@@ -108,18 +113,15 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    pub fn write_slice_unchecked(&mut self, mut index: usize, value: &[T])
+    pub fn write_slice_unchecked(&mut self, start_index: usize, value: &[T])
     where
         T: Copy,
     {
         // Make sure all the previous bytes are initialized before reading the array
+        let mut index = start_index;
         for byte in value {
-            self.array[index].write(*byte);
+            self.write_unchecked(index, *byte);
             index += 1;
-        }
-
-        if index >= self.length {
-            self.length = index;
         }
     }
 
@@ -145,7 +147,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn remove(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            let value = unsafe { ptr::read(self.as_ptr().add(index)) };
+            let value = self.get_unchecked(index);
 
             // Shift all the elements after the index to the left
             unsafe {
@@ -220,12 +222,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    const fn as_slice(&self) -> &[T] {
+    pub const fn as_slice(&self) -> &[T] {
         unsafe { slice::from_raw_parts(self.array.as_ptr().cast::<T>(), self.length) }
     }
 
     #[must_use]
-    fn as_mut_slice(&mut self) -> &mut [T] {
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
@@ -469,6 +471,9 @@ impl<const MAX_LENGTH: usize> From<u64> for Vec<u8, MAX_LENGTH> {
     }
 }
 
+// Deref to get the internal buffer.
+//
+// To deref in a const context, `Vec::as_slice` can be directly called
 impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
     type Target = [T];
 
@@ -477,6 +482,7 @@ impl<T, const MAX_LENGTH: usize> Deref for Vec<T, MAX_LENGTH> {
     }
 }
 
+// Deref to get the internal buffer.
 impl<T, const MAX_LENGTH: usize> DerefMut for Vec<T, MAX_LENGTH> {
     fn deref_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
@@ -809,6 +815,24 @@ mod tests {
     }
 
     #[test]
+    fn test_as_slice_with_empty_vec() {
+        let vec = Vec::<u8, 1>::new();
+
+        let array = vec.as_slice();
+
+        assert_eq!(0, array.len());
+    }
+
+    #[test]
+    fn test_as_mut_slice_with_empty_vec() {
+        let mut vec = Vec::<u8, 1>::new();
+
+        let array = vec.as_mut_slice();
+
+        assert_eq!(0, array.len());
+    }
+
+    #[test]
     fn test_vec_truncate() {
         let mut vec = Vec::<u8, 1>::new();
 
@@ -1021,6 +1045,16 @@ mod tests {
     #[test]
     fn test_deref_with_empty_vec() {
         let vec = Vec::<u8, 1>::new();
+
+        let array = &*vec;
+
+        assert_eq!(0, array.len());
+    }
+
+    #[test]
+    #[allow(unused_mut)]
+    fn test_deref_mut_with_empty_vec() {
+        let mut vec = Vec::<u8, 1>::new();
 
         let array = &*vec;
 
