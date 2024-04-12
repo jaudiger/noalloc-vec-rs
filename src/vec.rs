@@ -12,7 +12,6 @@ use core::ops::Deref;
 use core::ops::DerefMut;
 use core::ptr;
 use core::slice;
-use core::usize;
 
 use crate::assert::Assert;
 
