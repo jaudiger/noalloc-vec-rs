@@ -237,8 +237,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         let mut vec = Self::new();
 
         // Do not drop the elements of the array, since we're moving them into the vector
-        for byte in ManuallyDrop::new(from_array).iter() {
-            vec.push_unchecked(unsafe { ptr::read(byte) });
+        let array = ManuallyDrop::new(from_array);
+
+        while vec.length < array.len() {
+            vec.array[vec.length] = MaybeUninit::new(unsafe { ptr::read(&array[vec.length]) });
+            vec.length += 1;
         }
 
         vec
