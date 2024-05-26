@@ -112,15 +112,17 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    pub fn write_slice_unchecked(&mut self, start_index: usize, value: &[T])
+    pub fn write_slice_unchecked(&mut self, mut start_index: usize, value: &[T])
     where
         T: Copy,
     {
         // Make sure all the previous bytes are initialized before reading the array
-        let mut index = start_index;
-        for byte in value {
-            self.write_unchecked(index, *byte);
+        let mut index = 0;
+        while index < value.len() {
+            self.write_unchecked(start_index, value[index]);
+
             index += 1;
+            start_index += 1;
         }
     }
 
