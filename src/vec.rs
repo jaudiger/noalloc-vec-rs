@@ -243,14 +243,15 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    fn from_slice_unchecked(from_slice: &[T]) -> Self
+    const fn from_slice_unchecked(from_slice: &[T]) -> Self
     where
         T: Copy,
     {
         let mut vec = Self::new();
 
-        for byte in from_slice {
-            vec.push_unchecked(*byte);
+        while vec.length < from_slice.len() {
+            vec.array[vec.length] = MaybeUninit::new(from_slice[vec.length]);
+            vec.length += 1;
         }
 
         vec
