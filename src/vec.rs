@@ -55,11 +55,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     pub fn push_unchecked(&mut self, value: T) {
-        // FIXME: Calling 'write_unchecked' should be enough
-        // But due to an inlining issue, it introduces more bytes,
-        // than calling manually its content
-        // self.write_unchecked(self.length, value);
-
         self.array[self.length].write(value);
         self.length += 1;
     }
