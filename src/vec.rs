@@ -13,7 +13,7 @@ use core::ops::DerefMut;
 use core::ptr;
 use core::slice;
 
-use crate::assert::Assert;
+use crate::assert_lte;
 
 #[derive(Debug)]
 pub struct Vec<T, const MAX_LENGTH: usize> {
@@ -28,18 +28,16 @@ pub struct IntoIter<T, const MAX_LENGTH: usize> {
 
 impl<T, const MAX_LENGTH: usize> IntoIter<T, MAX_LENGTH> {
     #[must_use]
-    pub fn new(vec: Vec<T, MAX_LENGTH>) -> Self {
+    pub const fn new(vec: Vec<T, MAX_LENGTH>) -> Self {
         Self { vec, next: 0 }
     }
 }
 
 impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
-    const ARRAY_INIT_VALUE: MaybeUninit<T> = MaybeUninit::uninit();
-
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            array: [Self::ARRAY_INIT_VALUE; MAX_LENGTH],
+            array: [const { MaybeUninit::uninit() }; MAX_LENGTH],
             length: 0,
         }
     }
@@ -405,7 +403,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&Vec<T, LENGTH>
 {
     fn from(values: &Vec<T, LENGTH>) -> Self {
         // Build time assertion
-        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(LENGTH, MAX_LENGTH);
 
         Self::from_slice_unchecked(values)
     }
@@ -414,7 +412,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&Vec<T, LENGTH>
 impl<T, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]> for Vec<T, MAX_LENGTH> {
     fn from(values: [T; LENGTH]) -> Self {
         // Build time assertion
-        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(LENGTH, MAX_LENGTH);
 
         Self::from_array_unchecked(values)
     }
@@ -425,7 +423,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&[T; LENGTH]>
 {
     fn from(values: &[T; LENGTH]) -> Self {
         // Build time assertion
-        Assert::<LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(LENGTH, MAX_LENGTH);
 
         Self::from_slice_unchecked(values)
     }
@@ -435,7 +433,7 @@ impl<const MAX_LENGTH: usize> From<u8> for Vec<u8, MAX_LENGTH> {
     fn from(value: u8) -> Self {
         // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u8>();
-        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
         Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
     }
@@ -445,7 +443,7 @@ impl<const MAX_LENGTH: usize> From<u16> for Vec<u8, MAX_LENGTH> {
     fn from(value: u16) -> Self {
         // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u16>();
-        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
         Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
     }
@@ -455,7 +453,7 @@ impl<const MAX_LENGTH: usize> From<u32> for Vec<u8, MAX_LENGTH> {
     fn from(value: u32) -> Self {
         // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u32>();
-        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
         Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
     }
@@ -465,7 +463,7 @@ impl<const MAX_LENGTH: usize> From<u64> for Vec<u8, MAX_LENGTH> {
     fn from(value: u64) -> Self {
         // Build time assertion
         const VALUE_LENGTH: usize = size_of::<u64>();
-        Assert::<VALUE_LENGTH, MAX_LENGTH>::less_than_or_equal();
+        assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
         Self::from_uint_unchecked(value, VALUE_LENGTH)
     }
