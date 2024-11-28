@@ -221,7 +221,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
+    pub const fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
