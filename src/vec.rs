@@ -5,9 +5,9 @@
  *
  */
 
-use core::mem::size_of;
 use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
+use core::mem::size_of;
 use core::ops::Deref;
 use core::ops::DerefMut;
 use core::ptr;

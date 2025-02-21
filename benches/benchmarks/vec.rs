@@ -7,8 +7,8 @@
 
 use std::hint::black_box;
 
-use criterion::criterion_group;
 use criterion::Criterion;
+use criterion::criterion_group;
 use utils::vec::Vec;
 
 fn vec_benchmarks(c: &mut Criterion) {
