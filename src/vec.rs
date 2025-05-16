@@ -233,7 +233,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         let array = ManuallyDrop::new(from_array);
 
         while vec.length < array.len() {
-            vec.array[vec.length] = MaybeUninit::new(unsafe { ptr::read(&array[vec.length]) });
+            vec.array[vec.length] = MaybeUninit::new(unsafe { ptr::read(&raw const array[vec.length]) });
             vec.length += 1;
         }
 
@@ -358,7 +358,7 @@ impl<T, const MAX_LENGTH: usize> Drop for IntoIter<T, MAX_LENGTH> {
     fn drop(&mut self) {
         unsafe {
             // Drop all the remaining elements, and set the length to 0
-            ptr::drop_in_place(&mut self.vec.as_mut_slice()[self.next..]);
+            ptr::drop_in_place(&raw mut self.vec.as_mut_slice()[self.next..]);
             self.vec.length = 0;
         }
     }
