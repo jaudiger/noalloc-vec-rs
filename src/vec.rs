@@ -233,7 +233,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         let array = ManuallyDrop::new(from_array);
 
         while vec.length < array.len() {
-            vec.array[vec.length] = MaybeUninit::new(unsafe { ptr::read(&raw const array[vec.length]) });
+            vec.array[vec.length] =
+                MaybeUninit::new(unsafe { ptr::read(&raw const array[vec.length]) });
             vec.length += 1;
         }
 
