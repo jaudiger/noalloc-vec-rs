@@ -71,7 +71,9 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[allow(clippy::result_unit_err)]
     pub fn push(&mut self, value: T) -> Result<(), ()> {
         if self.length < MAX_LENGTH {
-            self.push_unchecked(value);
+            // This is a safe operation because we've checked that the vector is not full
+            unsafe { self.push_unchecked(value) };
+
             Ok(())
         } else {
             Err(())
@@ -83,7 +85,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     /// # Arguments
     ///
     /// * `value` - The value to push onto the vector.
-    pub const fn push_unchecked(&mut self, value: T) {
+    ///
+    /// # Safety
+    ///
+    /// Capacity must be checked before calling this function.
+    pub const unsafe fn push_unchecked(&mut self, value: T) {
         self.array[self.length].write(value);
         self.length += 1;
     }
@@ -97,7 +103,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn pop(&mut self) -> Option<T> {
         if self.length > 0 {
-            Some(self.pop_unchecked())
+            // This is a safe operation because we've checked that the vector is not empty
+            unsafe { Some(self.pop_unchecked()) }
         } else {
             None
         }
@@ -108,10 +115,14 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     /// # Returns
     ///
     /// The last element of the vector.
+    ///
+    /// # Safety
+    ///
+    /// Capacity must be checked before calling this function.
     #[must_use]
-    pub fn pop_unchecked(&mut self) -> T {
+    pub unsafe fn pop_unchecked(&mut self) -> T {
         self.length -= 1;
-        self.get_unchecked(self.length)
+        unsafe { self.get_unchecked(self.length) }
     }
 
     /// Writes a value to the specified index in the vector.
@@ -128,7 +139,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[allow(clippy::result_unit_err)]
     pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
         if index <= self.length && index < MAX_LENGTH {
-            self.write_unchecked(index, value);
+            // This is a safe operation because we've checked that the vector can hold the value
+            unsafe { self.write_unchecked(index, value) };
 
             Ok(())
         } else {
@@ -142,7 +154,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     ///
     /// * `index` - The index at which to write the value.
     /// * `value` - The value to write.
-    pub const fn write_unchecked(&mut self, index: usize, value: T) {
+    ///
+    /// # Safety
+    ///
+    /// Capacity must be checked before calling this function.
+    pub const unsafe fn write_unchecked(&mut self, index: usize, value: T) {
         // Make sure all the previous bytes are initialized before reading the array
         self.array[index].write(value);
         if index >= self.length {
@@ -167,7 +183,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         T: Copy,
     {
         if index <= self.length && index + value.len() <= MAX_LENGTH {
-            self.write_slice_unchecked(index, value);
+            // This is a safe operation because we've checked that the vector can hold the slice
+            unsafe { self.write_slice_unchecked(index, value) };
 
             Ok(())
         } else {
@@ -181,14 +198,18 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     ///
     /// * `start_index` - The starting index at which to write the slice.
     /// * `value` - The slice of values to write.
-    pub const fn write_slice_unchecked(&mut self, mut start_index: usize, value: &[T])
+    ///
+    /// # Safety
+    ///
+    /// Capacity must be checked before calling this function.
+    pub const unsafe fn write_slice_unchecked(&mut self, mut start_index: usize, value: &[T])
     where
         T: Copy,
     {
         // Make sure all the previous bytes are initialized before reading the array
         let mut index = 0;
         while index < value.len() {
-            self.write_unchecked(start_index, value[index]);
+            unsafe { self.write_unchecked(start_index, value[index]) };
 
             index += 1;
             start_index += 1;
@@ -238,7 +259,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn remove(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            let value = self.get_unchecked(index);
+            // This is a safe operation because we know that the index is within bounds
+            let value = unsafe { self.get_unchecked(index) };
 
             // Shift all the elements after the index to the left
             unsafe {
@@ -267,7 +289,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn get(&self, index: usize) -> Option<T> {
         if index < self.length {
-            Some(self.get_unchecked(index))
+            // This is a safe operation because we know that the index is within bounds
+            unsafe { Some(self.get_unchecked(index)) }
         } else {
             None
         }
@@ -282,8 +305,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     /// # Returns
     ///
     /// A reference to the element at the specified index.
+    ///
+    /// # Safety
+    ///
+    /// Capacity must be checked before calling this function.
     #[must_use]
-    pub fn get_unchecked(&self, index: usize) -> T {
+    pub unsafe fn get_unchecked(&self, index: usize) -> T {
         unsafe { self.array.get_unchecked(index).as_ptr().read() }
     }
 
@@ -300,7 +327,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            Some(self.get_mut_unchecked(index))
+            // This is a safe operation because we know the index is within bounds
+            unsafe { Some(self.get_mut_unchecked(index)) }
         } else {
             None
         }
@@ -315,8 +343,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     /// # Returns
     ///
     /// A mutable reference to the element at the specified index.
+    ///
+    /// # Safety
+    ///
+    /// Capacity must be checked before calling this function.
     #[must_use]
-    pub fn get_mut_unchecked(&mut self, index: usize) -> T {
+    pub unsafe fn get_mut_unchecked(&mut self, index: usize) -> T {
         unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() }
     }
 
@@ -347,12 +379,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.truncate(0);
     }
 
-    fn extend<I>(&mut self, iter: I)
+    unsafe fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
     {
         for elem in iter {
-            self.push_unchecked(elem);
+            unsafe { self.push_unchecked(elem) };
         }
     }
 
@@ -377,7 +409,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self {
+    unsafe fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self {
         let mut vec = Self::new();
 
         // Do not drop the elements of the array, since we're moving them into the vector
@@ -393,7 +425,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    const fn from_slice_unchecked(from_slice: &[T]) -> Self
+    const unsafe fn from_slice_unchecked(from_slice: &[T]) -> Self
     where
         T: Copy,
     {
@@ -408,7 +440,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    fn from_uint_unchecked(mut value: u64, max_length: usize) -> Self
+    unsafe fn from_uint_unchecked(mut value: u64, max_length: usize) -> Self
     where
         T: From<u8>,
     {
@@ -422,7 +454,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
                 real_length = index + 1;
             }
 
-            vec.push_unchecked(byte.into());
+            unsafe { vec.push_unchecked(byte.into()) };
 
             // Shift the value to the right
             value >>= 8;
@@ -442,7 +474,8 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         let mut value = 0;
         let mut index = 0;
         while index < self.len() {
-            let byte = self.get_unchecked(index).into();
+            // This is a safe operation because we know that the index is within bounds
+            let byte = unsafe { self.get_unchecked(index).into() };
 
             value |= u64::from(byte) << (index * 8);
 
@@ -532,7 +565,8 @@ impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
     /// Returns the next element in the iterator.
     fn next(&mut self) -> Option<Self::Item> {
         if self.next < self.vec.len() {
-            let value = self.vec.get_unchecked(self.next);
+            // This is a safe operation because we know that the index is within bounds
+            let value = unsafe { self.vec.get_unchecked(self.next) };
             self.next += 1;
 
             Some(value)
@@ -601,7 +635,8 @@ impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
             return Err(());
         }
 
-        Ok(Self::from_slice_unchecked(values))
+        // This is a safe operation because we check at runtime that the length is sufficient
+        Ok(unsafe { Self::from_slice_unchecked(values) })
     }
 }
 
@@ -616,7 +651,8 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&Vec<T, LENGTH>
         // Build time assertion
         assert_lte!(LENGTH, MAX_LENGTH);
 
-        Self::from_slice_unchecked(values)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_slice_unchecked(values) }
     }
 }
 
@@ -629,7 +665,8 @@ impl<T, const LENGTH: usize, const MAX_LENGTH: usize> From<[T; LENGTH]> for Vec<
         // Build time assertion
         assert_lte!(LENGTH, MAX_LENGTH);
 
-        Self::from_array_unchecked(values)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_array_unchecked(values) }
     }
 }
 
@@ -644,7 +681,8 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&[T; LENGTH]>
         // Build time assertion
         assert_lte!(LENGTH, MAX_LENGTH);
 
-        Self::from_slice_unchecked(values)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_slice_unchecked(values) }
     }
 }
 
@@ -658,7 +696,8 @@ impl<const MAX_LENGTH: usize> From<u8> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u8>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH) }
     }
 }
 
@@ -672,7 +711,8 @@ impl<const MAX_LENGTH: usize> From<u16> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u16>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH) }
     }
 }
 
@@ -686,7 +726,8 @@ impl<const MAX_LENGTH: usize> From<u32> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u32>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH) }
     }
 }
 
@@ -700,7 +741,8 @@ impl<const MAX_LENGTH: usize> From<u64> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u64>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        Self::from_uint_unchecked(value, VALUE_LENGTH)
+        // This is a safe operation because we check at build time that the length is sufficient
+        unsafe { Self::from_uint_unchecked(value, VALUE_LENGTH) }
     }
 }
 
@@ -788,13 +830,14 @@ impl<'a, T, const MAX_LENGTH: usize> Extend<&'a T> for Vec<T, MAX_LENGTH>
 where
     T: 'a + Copy,
 {
-    // Check left capacity before using this method
     /// Extends the `Vec` with references to elements.
+    /// Check left capacity before using this method.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = &'a T>,
     {
-        self.extend(iter.into_iter().copied());
+        // This is not a safe operation, the caller must ensure there is enough capacity
+        unsafe { self.extend(iter.into_iter().copied()) };
     }
 }
 
@@ -805,13 +848,14 @@ impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH>
 where
     T: Copy,
 {
-    // Check left capacity before using this method
     /// Extends the `Vec` with elements.
+    /// Check left capacity before using this method.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
     {
-        self.extend(iter);
+        // This is not a safe operation, the caller must ensure there is enough capacity
+        unsafe { self.extend(iter) };
     }
 }
 
@@ -826,7 +870,8 @@ where
     fn clone(&self) -> Self {
         let mut new_vec = Self::new();
         for elem in self {
-            new_vec.push_unchecked(elem.clone());
+            // This is a safe operation because the destination vector has the same capacity as the source vector
+            unsafe { new_vec.push_unchecked(elem.clone()) };
         }
 
         new_vec
@@ -866,7 +911,7 @@ mod tests {
     fn test_vec_push_unchecked() {
         let mut vec = Vec::<u8, 1>::new();
 
-        vec.push_unchecked(1);
+        unsafe { vec.push_unchecked(1) };
 
         assert_eq!(1, vec.len());
         assert!(!vec.is_empty());
@@ -887,7 +932,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
 
-        assert_eq!(1, vec.pop_unchecked());
+        assert_eq!(1, unsafe { vec.pop_unchecked() });
         assert_eq!(0, vec.len());
         assert_eq!(None, vec.pop());
     }
@@ -913,7 +958,7 @@ mod tests {
     fn test_vec_write_unchecked() {
         let mut vec = Vec::<u8, 3>::new();
 
-        vec.write_unchecked(0, 1);
+        unsafe { vec.write_unchecked(0, 1) };
 
         assert_eq!(1, vec.len());
         assert_eq!(Some(1), vec.get(0));
@@ -943,7 +988,7 @@ mod tests {
     fn test_vec_write_slice_unchecked() {
         let mut vec = Vec::<u8, 3>::new();
 
-        vec.write_slice_unchecked(0, &[1, 2, 3]);
+        unsafe { vec.write_slice_unchecked(0, &[1, 2, 3]) };
 
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
@@ -1034,7 +1079,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
 
-        assert_eq!(1, vec.get_unchecked(0));
+        assert_eq!(1, unsafe { vec.get_unchecked(0) });
         assert_eq!(1, vec.len());
     }
 
@@ -1062,7 +1107,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
 
-        assert_eq!(1, vec.get_mut_unchecked(0));
+        assert_eq!(1, unsafe { vec.get_mut_unchecked(0) });
         assert_eq!(1, vec.len());
     }
 
@@ -1071,7 +1116,7 @@ mod tests {
         let mut vec = Vec::<u8, 3>::new();
         let array: [u8; 3] = [1, 2, 3];
 
-        vec.extend(array.iter().copied());
+        unsafe { vec.extend(array.iter().copied()) };
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
         assert_eq!(Some(2), vec.get(1));
