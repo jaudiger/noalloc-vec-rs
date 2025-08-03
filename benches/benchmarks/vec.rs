@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2024.
+ * Copyright (c) 2025.
  * All rights reserved.
  *
  */
@@ -9,7 +9,7 @@ use std::hint::black_box;
 
 use criterion::Criterion;
 use criterion::criterion_group;
-use utils::vec::Vec;
+use noalloc_vec_rs::vec::Vec;
 
 fn vec_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Vec");
