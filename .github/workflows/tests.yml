@@ -63,3 +63,31 @@ jobs:
         with:
           filename: ${{ env.CODE_COVERAGE_REPORT_FOLDER }}/${{ env.CODE_COVERAGE_REPORT_FILE }}
           indicators: false
+
+  bench-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+
+      - name: Cache cargo registry + build
+        uses: actions/cache@v4.2.3
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/git/db
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/index
+            target
+          key: bench-tests-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo bench --all-features

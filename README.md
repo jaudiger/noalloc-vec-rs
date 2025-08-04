@@ -25,7 +25,7 @@ assert_eq!(vec.get(1), Some(&43));
 The CI/CD pipeline is configured using GitHub Actions. The workflow is defined in the [`.github/workflows`](.github/workflows) folder:
 
 - Static Analysis (source code, GitHub Actions)
-- Tests (unit tests with code coverage generated)
+- Tests (unit tests with code coverage generated, benchmarking)
 - Code Audit (on each Cargo dependencies update, or run each day through CronJob)
 - Deployment
 
