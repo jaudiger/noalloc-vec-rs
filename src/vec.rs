@@ -1,10 +1,3 @@
-/*
- *
- * Copyright (c) 2025.
- * All rights reserved.
- *
- */
-
 use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
 use core::mem::size_of;

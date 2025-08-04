@@ -1,10 +1,3 @@
-/*
- *
- * Copyright (c) 2025.
- * All rights reserved.
- *
- */
-
 use std::hint::black_box;
 
 use criterion::Criterion;

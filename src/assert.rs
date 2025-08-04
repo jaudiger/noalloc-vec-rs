@@ -1,10 +1,3 @@
-/*
- *
- * Copyright (c) 2025.
- * All rights reserved.
- *
- */
-
 #[macro_export]
 macro_rules! assert_lt {
     ($left:expr, $right:expr) => {
