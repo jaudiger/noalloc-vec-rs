@@ -14,7 +14,7 @@ categories = ["no-std"]
 keywords = ["static", "no-heap"]
 
 [dev-dependencies]
-criterion = "0.8.0"
+criterion = "0.8.1"
 
 [[bench]]
 name = "bench"
