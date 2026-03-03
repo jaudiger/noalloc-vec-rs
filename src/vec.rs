@@ -861,6 +861,19 @@ where
     }
 }
 
+/// Implementation of `FromIterator` for `Vec`.
+///
+/// This allows construction a `Vec` from an Iterator, eg. with
+/// `Iterator::collect`.
+impl<T, const MAX_LENGTH: usize> FromIterator<T> for Vec<T, MAX_LENGTH> {
+    /// Panics if the Iterator is longer then `MAX_LENGTH`.
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut v = Self::new();
+        v.extend(iter);
+        v
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::vec::Vec;
@@ -1373,5 +1386,12 @@ mod tests {
         assert_eq!(Some(1), into_iter.next());
         assert_eq!(Some(2), into_iter.next());
         assert_eq!(Some(3), into_iter.next());
+    }
+
+    #[test]
+    fn test_from_iter() {
+        let vec: Vec<u8, 5> = [1, 2, 3].into_iter().collect();
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[2], 3);
     }
 }
