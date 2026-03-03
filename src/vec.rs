@@ -837,10 +837,7 @@ where
 /// Implementation of `Extend` for `Vec`.
 ///
 /// This allows extending a `Vec` with elements.
-impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH>
-where
-    T: Copy,
-{
+impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH> {
     /// Extends the `Vec` with elements.
     /// Check left capacity before using this method.
     fn extend<I>(&mut self, iter: I)
