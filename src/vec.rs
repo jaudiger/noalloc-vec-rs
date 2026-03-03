@@ -558,7 +558,14 @@ impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.vec.length - self.next;
+        (len, Some(len))
+    }
 }
+
+impl<T, const MAX_LENGTH: usize> ExactSizeIterator for IntoIter<T, MAX_LENGTH> {}
 
 /// Drop implementation for `IntoIter`.
 ///
