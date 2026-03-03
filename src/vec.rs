@@ -372,15 +372,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.truncate(0);
     }
 
-    unsafe fn extend<I>(&mut self, iter: I)
-    where
-        I: IntoIterator<Item = T>,
-    {
-        for elem in iter {
-            unsafe { self.push_unchecked(elem) };
-        }
-    }
-
     /// Returns a slice containing the entire vector.
     ///
     /// # Returns
@@ -824,13 +815,14 @@ where
     T: 'a + Copy,
 {
     /// Extends the `Vec` with references to elements.
-    /// Check left capacity before using this method.
+    /// Panics if there are more elements than remaining capacity.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = &'a T>,
     {
-        // This is not a safe operation, the caller must ensure there is enough capacity
-        unsafe { self.extend(iter.into_iter().copied()) };
+        for elem in iter.into_iter().copied() {
+            self.push(elem).expect("Too many elements");
+        }
     }
 }
 
@@ -839,13 +831,14 @@ where
 /// This allows extending a `Vec` with elements.
 impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH> {
     /// Extends the `Vec` with elements.
-    /// Check left capacity before using this method.
+    /// Panics if there are more elements than remaining capacity.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
     {
-        // This is not a safe operation, the caller must ensure there is enough capacity
-        unsafe { self.extend(iter) };
+        for elem in iter {
+            self.push(elem).expect("Too many elements");
+        }
     }
 }
 
@@ -1106,7 +1099,7 @@ mod tests {
         let mut vec = Vec::<u8, 3>::new();
         let array: [u8; 3] = [1, 2, 3];
 
-        unsafe { vec.extend(array.iter().copied()) };
+        vec.extend(array);
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
         assert_eq!(Some(2), vec.get(1));
