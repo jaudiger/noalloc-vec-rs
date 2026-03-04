@@ -152,16 +152,17 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     ///
     /// Returns `Ok(())` if successful, or `Err(value)` if `index` is out of bounds
     /// or the vector is full, allowing the caller to recover the rejected element.
-    pub fn insert(&mut self, index: usize, value: T) -> Result<(), T> {
+    pub const fn insert(&mut self, index: usize, value: T) -> Result<(), T> {
         // Check if the element can be inserted
         if index > self.length || self.length + 1 > MAX_LENGTH {
             Err(value)
         } else {
             // Shift all the elements after the index to the right
             unsafe {
-                let start_slice = self.as_mut_ptr().add(index);
-                ptr::copy(start_slice, start_slice.add(1), self.length - index);
-                ptr::write(start_slice, value);
+                let base = self.array.as_mut_ptr().cast::<T>();
+                let dst = base.add(index);
+                ptr::copy(dst, dst.add(1), self.length - index);
+                ptr::write(dst, value);
             }
 
             self.length += 1;
@@ -172,16 +173,16 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Removes and returns the element at `index`, or `None` if out of bounds.
     #[must_use]
-    pub fn remove(&mut self, index: usize) -> Option<T> {
+    pub const fn remove(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            // This is a safe operation because we know that the index is within bounds
-            let value = unsafe { self.get_unchecked(index) };
-
             // Shift all the elements after the index to the left
-            unsafe {
-                let start_slice = self.as_mut_ptr().add(index);
-                ptr::copy(start_slice.add(1), start_slice, self.length - index - 1);
-            }
+            let value = unsafe {
+                let base = self.array.as_mut_ptr().cast::<T>();
+                let src = base.add(index);
+                let value = src.read();
+                ptr::copy(src.add(1), src, self.length - index - 1);
+                value
+            };
 
             self.length -= 1;
 
