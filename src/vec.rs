@@ -372,15 +372,6 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.truncate(0);
     }
 
-    unsafe fn extend<I>(&mut self, iter: I)
-    where
-        I: IntoIterator<Item = T>,
-    {
-        for elem in iter {
-            unsafe { self.push_unchecked(elem) };
-        }
-    }
-
     /// Returns a slice containing the entire vector.
     ///
     /// # Returns
@@ -567,7 +558,14 @@ impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.vec.length - self.next;
+        (len, Some(len))
+    }
 }
+
+impl<T, const MAX_LENGTH: usize> ExactSizeIterator for IntoIter<T, MAX_LENGTH> {}
 
 /// Drop implementation for `IntoIter`.
 ///
@@ -824,31 +822,30 @@ where
     T: 'a + Copy,
 {
     /// Extends the `Vec` with references to elements.
-    /// Check left capacity before using this method.
+    /// Panics if there are more elements than remaining capacity.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = &'a T>,
     {
-        // This is not a safe operation, the caller must ensure there is enough capacity
-        unsafe { self.extend(iter.into_iter().copied()) };
+        for elem in iter.into_iter().copied() {
+            self.push(elem).expect("Too many elements");
+        }
     }
 }
 
 /// Implementation of `Extend` for `Vec`.
 ///
 /// This allows extending a `Vec` with elements.
-impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH>
-where
-    T: Copy,
-{
+impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH> {
     /// Extends the `Vec` with elements.
-    /// Check left capacity before using this method.
+    /// Panics if there are more elements than remaining capacity.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
     {
-        // This is not a safe operation, the caller must ensure there is enough capacity
-        unsafe { self.extend(iter) };
+        for elem in iter {
+            self.push(elem).expect("Too many elements");
+        }
     }
 }
 
@@ -868,6 +865,19 @@ where
         }
 
         new_vec
+    }
+}
+
+/// Implementation of `FromIterator` for `Vec`.
+///
+/// This allows construction a `Vec` from an Iterator, eg. with
+/// `Iterator::collect`.
+impl<T, const MAX_LENGTH: usize> FromIterator<T> for Vec<T, MAX_LENGTH> {
+    /// Panics if the Iterator is longer then `MAX_LENGTH`.
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut v = Self::new();
+        v.extend(iter);
+        v
     }
 }
 
@@ -1109,7 +1119,7 @@ mod tests {
         let mut vec = Vec::<u8, 3>::new();
         let array: [u8; 3] = [1, 2, 3];
 
-        unsafe { vec.extend(array.iter().copied()) };
+        vec.extend(array);
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
         assert_eq!(Some(2), vec.get(1));
@@ -1383,5 +1393,12 @@ mod tests {
         assert_eq!(Some(1), into_iter.next());
         assert_eq!(Some(2), into_iter.next());
         assert_eq!(Some(3), into_iter.next());
+    }
+
+    #[test]
+    fn test_from_iter() {
+        let vec: Vec<u8, 5> = [1, 2, 3].into_iter().collect();
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[2], 3);
     }
 }
