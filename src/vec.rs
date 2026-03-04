@@ -41,15 +41,15 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Attempts to push `value` onto the vector.
     ///
-    /// Returns `Err(())` if the vector is full.
-    #[allow(clippy::result_unit_err)]
-    pub fn push(&mut self, value: T) -> Result<(), ()> {
+    /// Returns `Ok(())` if successful, or `Err(value)` if the vector is full,
+    /// allowing the caller to recover the rejected element.
+    pub const fn push(&mut self, value: T) -> Result<(), T> {
         if self.length < MAX_LENGTH {
             self.push_unchecked(value);
 
             Ok(())
         } else {
-            Err(())
+            Err(value)
         }
     }
 
@@ -700,7 +700,7 @@ where
         I: IntoIterator<Item = &'a T>,
     {
         for elem in iter.into_iter().copied() {
-            self.push(elem).expect("Too many elements");
+            self.push(elem).map_err(|_| ()).expect("Too many elements");
         }
     }
 }
@@ -719,7 +719,7 @@ impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH> {
         I: IntoIterator<Item = T>,
     {
         for elem in iter {
-            self.push(elem).expect("Too many elements");
+            self.push(elem).map_err(|_| ()).expect("Too many elements");
         }
     }
 }
@@ -744,7 +744,7 @@ where
 
 /// Implementation of `FromIterator` for `Vec`.
 ///
-/// This allows construction a `Vec` from an Iterator, eg. with
+/// This allows constructing a `Vec` from an Iterator, eg. with
 /// `Iterator::collect`.
 impl<T, const MAX_LENGTH: usize> FromIterator<T> for Vec<T, MAX_LENGTH> {
     /// Collects an iterator into a `Vec`.
@@ -785,7 +785,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
 
         assert_eq!(Ok(()), vec.push(1));
-        assert_eq!(Err(()), vec.push(2));
+        assert_eq!(Err(2), vec.push(2));
     }
 
     #[test]
