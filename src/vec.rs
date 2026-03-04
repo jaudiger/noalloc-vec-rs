@@ -22,15 +22,7 @@ pub struct IntoIter<T, const MAX_LENGTH: usize> {
 }
 
 impl<T, const MAX_LENGTH: usize> IntoIter<T, MAX_LENGTH> {
-    /// Creates a new `IntoIter` from a `Vec`.
-    ///
-    /// # Arguments
-    ///
-    /// * `vec` - The `Vec` to iterate over.
-    ///
-    /// # Returns
-    ///
-    /// A new `IntoIter` instance.
+    /// Creates a new `IntoIter` from `vec`.
     #[must_use]
     pub const fn new(vec: Vec<T, MAX_LENGTH>) -> Self {
         Self { vec, next: 0 }
@@ -38,11 +30,7 @@ impl<T, const MAX_LENGTH: usize> IntoIter<T, MAX_LENGTH> {
 }
 
 impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
-    /// Creates a new, empty `Vec` with a maximum length specified at compile time.
-    ///
-    /// # Returns
-    ///
-    /// A new, empty `Vec` instance.
+    /// Creates a new, empty `Vec`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -51,16 +39,9 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Attempts to push a value onto the vector.
+    /// Attempts to push `value` onto the vector.
     ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to push onto the vector.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` if the value was successfully pushed
-    /// * `Err(())` if the vector is full.
+    /// Returns `Err(())` if the vector is full.
     #[allow(clippy::result_unit_err)]
     pub fn push(&mut self, value: T) -> Result<(), ()> {
         if self.length < MAX_LENGTH {
@@ -72,11 +53,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Pushes a value onto the vector without checking if it is full.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to push onto the vector.
+    /// Pushes `value` onto the vector without checking capacity.
     ///
     /// # Panics
     ///
@@ -86,12 +63,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.length += 1;
     }
 
-    /// Removes the last element from the vector and returns it.
-    ///
-    /// # Returns
-    ///
-    /// * `Some(T)` if the vector is not empty
-    /// * `None` if the vector is empty.
+    /// Removes and returns the last element, or `None` if the vector is empty.
     #[must_use]
     pub fn pop(&mut self) -> Option<T> {
         if self.length > 0 {
@@ -102,32 +74,20 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Removes the last element from the vector and returns it without checking if it is empty.
-    ///
-    /// # Returns
-    ///
-    /// The last element of the vector.
+    /// Removes and returns the last element without checking if the vector is empty.
     ///
     /// # Safety
     ///
-    /// Capacity must be checked before calling this function.
+    /// The vector must not be empty.
     #[must_use]
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.length -= 1;
         unsafe { self.get_unchecked(self.length) }
     }
 
-    /// Writes a value to the specified index in the vector.
+    /// Writes `value` at `index` in the vector.
     ///
-    /// # Arguments
-    ///
-    /// * `index` - The index at which to write the value.
-    /// * `value` - The value to write.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` if the value was successfully written.
-    /// * `Err(())` if the index is out of bounds.
+    /// Returns `Err(())` if `index` is out of bounds.
     #[allow(clippy::result_unit_err)]
     pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
         if index <= self.length && index < MAX_LENGTH {
@@ -140,16 +100,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Writes a value to the specified index in the vector without checking bounds.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The index at which to write the value.
-    /// * `value` - The value to write.
+    /// Writes `value` at `index` without checking bounds.
     ///
     /// # Safety
     ///
-    /// Capacity must be checked before calling this function.
+    /// `index` must be less than `MAX_LENGTH`.
     pub const unsafe fn write_unchecked(&mut self, index: usize, value: T) {
         // Make sure all the previous bytes are initialized before reading the array
         self.array[index].write(value);
@@ -158,17 +113,9 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Writes a slice of values to the vector starting at the specified index.
+    /// Writes `value` into the vector starting at `index`.
     ///
-    /// # Arguments
-    ///
-    /// * `index` - The starting index at which to write the slice.
-    /// * `value` - The slice of values to write.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` if the slice was successfully written.
-    /// * `Err(())` if the index or slice length is out of bounds.
+    /// Returns `Err(())` if `index + value.len()` exceeds `MAX_LENGTH`.
     #[allow(clippy::result_unit_err)]
     pub const fn write_slice(&mut self, index: usize, value: &[T]) -> Result<(), ()>
     where
@@ -184,16 +131,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Writes a slice of values to the vector starting at the specified index without checking bounds.
-    ///
-    /// # Arguments
-    ///
-    /// * `start_index` - The starting index at which to write the slice.
-    /// * `value` - The slice of values to write.
+    /// Writes `value` into the vector starting at `start_index` without checking bounds.
     ///
     /// # Safety
     ///
-    /// Capacity must be checked before calling this function.
+    /// `start_index + value.len()` must not exceed `MAX_LENGTH`.
     pub const unsafe fn write_slice_unchecked(&mut self, mut start_index: usize, value: &[T])
     where
         T: Copy,
@@ -208,17 +150,9 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Attempts to insert a value at the specified index in the vector.
+    /// Inserts `value` at `index`, shifting subsequent elements to the right.
     ///
-    /// # Arguments
-    ///
-    /// * `index` - The index at which to insert the value.
-    /// * `value` - The value to insert.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` if the value was successfully inserted.
-    /// * `Err(())` if the index is out of bounds or the vector is full.
+    /// Returns `Err(())` if `index` is out of bounds or the vector is full.
     #[allow(clippy::result_unit_err)]
     pub fn insert(&mut self, index: usize, value: T) -> Result<(), ()> {
         // Check if the element can be inserted
@@ -238,16 +172,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Removes the element at the specified index from the vector and returns it.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The index of the element to remove.
-    ///
-    /// # Returns
-    ///
-    /// * `Some(T)` if the element was successfully removed.
-    /// * `None` if the index is out of bounds.
+    /// Removes and returns the element at `index`, or `None` if out of bounds.
     #[must_use]
     pub fn remove(&mut self, index: usize) -> Option<T> {
         if index < self.length {
@@ -268,16 +193,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Returns a reference to the element at the specified index.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The index of the element to get.
-    ///
-    /// # Returns
-    ///
-    /// * `Some(&T)` if the index is within bounds.
-    /// * `None` if the index is out of bounds.
+    /// Returns the element at `index`, or `None` if out of bounds.
     #[must_use]
     pub fn get(&self, index: usize) -> Option<T> {
         if index < self.length {
@@ -288,34 +204,17 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Returns a reference to the element at the specified index without checking bounds.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The index of the element to get.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the element at the specified index.
+    /// Returns the element at `index` without checking bounds.
     ///
     /// # Safety
     ///
-    /// Capacity must be checked before calling this function.
+    /// `index` must be less than `self.length`.
     #[must_use]
     pub unsafe fn get_unchecked(&self, index: usize) -> T {
         unsafe { self.array.get_unchecked(index).as_ptr().read() }
     }
 
-    /// Returns a mutable reference to the element at the specified index.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The index of the element to get.
-    ///
-    /// # Returns
-    ///
-    /// * `Some(&mut T)` if the index is within bounds.
-    /// * `None` if the index is out of bounds.
+    /// Returns the element at `index`, or `None` if out of bounds.
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> Option<T> {
         if index < self.length {
@@ -326,29 +225,17 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Returns a mutable reference to the element at the specified index without checking bounds.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The index of the element to get.
-    ///
-    /// # Returns
-    ///
-    /// A mutable reference to the element at the specified index.
+    /// Returns the element at `index` without checking bounds.
     ///
     /// # Safety
     ///
-    /// Capacity must be checked before calling this function.
+    /// `index` must be less than `self.length`.
     #[must_use]
     pub unsafe fn get_mut_unchecked(&mut self, index: usize) -> T {
         unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() }
     }
 
-    /// Truncates the vector to the specified length.
-    ///
-    /// # Arguments
-    ///
-    /// * `new_length` - The new length of the vector.
+    /// Shortens the vector to `new_length`, dropping excess elements. Does nothing if `new_length >= self.length`.
     pub fn truncate(&mut self, new_length: usize) {
         if new_length >= self.length {
             return;
@@ -371,26 +258,23 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         self.truncate(0);
     }
 
-    /// Returns a slice containing the entire vector.
-    ///
-    /// # Returns
-    ///
-    /// A slice containing the entire vector.
+    /// Returns the contents as a slice.
     #[must_use]
     pub const fn as_slice(&self) -> &[T] {
         unsafe { slice::from_raw_parts(self.array.as_ptr().cast::<T>(), self.length) }
     }
 
-    /// Returns a mutable slice containing the entire vector.
-    ///
-    /// # Returns
-    ///
-    /// A mutable slice containing the entire vector.
+    /// Returns the contents as a mutable slice.
     #[must_use]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.array.as_mut_ptr().cast::<T>(), self.length) }
     }
 
+    /// Moves all elements of `from_array` into a new `Vec`.
+    ///
+    /// # Safety
+    ///
+    /// `LENGTH` must not exceed `MAX_LENGTH`.
     #[must_use]
     unsafe fn from_array_unchecked<const LENGTH: usize>(from_array: [T; LENGTH]) -> Self {
         let mut vec = Self::new();
@@ -407,6 +291,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         vec
     }
 
+    /// Copies all elements of `from_slice` into a new `Vec`.
+    ///
+    /// # Safety
+    ///
+    /// `from_slice.len()` must not exceed `MAX_LENGTH`.
     #[must_use]
     const unsafe fn from_slice_unchecked(from_slice: &[T]) -> Self
     where
@@ -454,6 +343,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         vec
     }
 
+    /// Encodes the elements as a little-endian `u64`, treating each element as a byte.
     #[must_use]
     fn to_uint(&self) -> u64
     where
@@ -473,32 +363,19 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         value
     }
 
-    /// Returns the current length of the vector.
-    ///
-    /// # Returns
-    ///
-    /// The current length of the vector.
+    /// Returns the number of elements in the vector.
     #[must_use]
     pub const fn len(&self) -> usize {
         self.length
     }
 
-    /// Returns the remaining capacity of the vector.
-    ///
-    /// # Returns
-    ///
-    /// The remaining capacity of the vector.
+    /// Returns the number of elements that can still be pushed before the vector is full.
     #[must_use]
     pub const fn remaining_len(&self) -> usize {
         MAX_LENGTH - self.length
     }
 
-    /// Checks if the vector is empty.
-    ///
-    /// # Returns
-    ///
-    /// * `true` if the vector is empty
-    /// * `false` if the vector is not empty
+    /// Returns `true` if the vector contains no elements.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.length == 0
@@ -509,11 +386,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 ///
 /// This allows creating a `Vec` using `Vec::default()`.
 impl<T, const MAX_LENGTH: usize> Default for Vec<T, MAX_LENGTH> {
-    /// Creates a new, empty `Vec` with a maximum length specified at compile time.
-    ///
-    /// # Returns
-    ///
-    /// A new, empty `Vec` instance.
+    /// Creates a new, empty `Vec`.
     fn default() -> Self {
         Self::new()
     }
@@ -563,6 +436,7 @@ impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
         }
     }
 
+    /// Returns the exact number of remaining elements as both the lower and upper bound.
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.vec.length - self.next;
         (len, Some(len))
@@ -623,7 +497,7 @@ impl<T, const MAX_LENGTH: usize> Eq for Vec<T, MAX_LENGTH> where T: Eq {}
 impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
     type Error = ();
 
-    /// Converts a slice into a `Vec`.
+    /// Converts `values` into a `Vec`, returning `Err(())` if the slice is longer than `MAX_LENGTH`.
     fn try_from(values: &[T]) -> Result<Self, Self::Error> {
         // Runtime check
         if values.len() > MAX_LENGTH {
@@ -821,8 +695,11 @@ impl<'a, T, const MAX_LENGTH: usize> Extend<&'a T> for Vec<T, MAX_LENGTH>
 where
     T: 'a + Copy,
 {
-    /// Extends the `Vec` with references to elements.
-    /// Panics if there are more elements than remaining capacity.
+    /// Extends the `Vec` with elements from `iter`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the iterator yields more elements than the remaining capacity.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = &'a T>,
@@ -837,8 +714,11 @@ where
 ///
 /// This allows extending a `Vec` with elements.
 impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH> {
-    /// Extends the `Vec` with elements.
-    /// Panics if there are more elements than remaining capacity.
+    /// Extends the `Vec` with elements from `iter`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the iterator yields more elements than the remaining capacity.
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = T>,
@@ -872,7 +752,11 @@ where
 /// This allows construction a `Vec` from an Iterator, eg. with
 /// `Iterator::collect`.
 impl<T, const MAX_LENGTH: usize> FromIterator<T> for Vec<T, MAX_LENGTH> {
-    /// Panics if the Iterator is longer then `MAX_LENGTH`.
+    /// Collects an iterator into a `Vec`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the iterator yields more than `MAX_LENGTH` elements.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut v = Self::new();
         v.extend(iter);
