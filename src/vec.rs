@@ -291,11 +291,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Copies all elements of `from_slice` into a new `Vec`.
     ///
-    /// # Safety
+    /// # Panics
     ///
-    /// `from_slice.len()` must not exceed `MAX_LENGTH`.
+    /// Panics if `from_slice.len()` exceeds `MAX_LENGTH`.
     #[must_use]
-    const unsafe fn from_slice_unchecked(from_slice: &[T]) -> Self
+    const fn from_slice_unchecked(from_slice: &[T]) -> Self
     where
         T: Copy,
     {
@@ -502,8 +502,7 @@ impl<T: Copy, const MAX_LENGTH: usize> TryFrom<&[T]> for Vec<T, MAX_LENGTH> {
             return Err(());
         }
 
-        // This is a safe operation because we check at runtime that the length is sufficient
-        Ok(unsafe { Self::from_slice_unchecked(values) })
+        Ok(Self::from_slice_unchecked(values))
     }
 }
 
@@ -518,8 +517,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&Vec<T, LENGTH>
         // Build time assertion
         assert_lte!(LENGTH, MAX_LENGTH);
 
-        // This is a safe operation because we check at build time that the length is sufficient
-        unsafe { Self::from_slice_unchecked(values) }
+        Self::from_slice_unchecked(values)
     }
 }
 
@@ -548,8 +546,7 @@ impl<T: Copy, const LENGTH: usize, const MAX_LENGTH: usize> From<&[T; LENGTH]>
         // Build time assertion
         assert_lte!(LENGTH, MAX_LENGTH);
 
-        // This is a safe operation because we check at build time that the length is sufficient
-        unsafe { Self::from_slice_unchecked(values) }
+        Self::from_slice_unchecked(values)
     }
 }
 
