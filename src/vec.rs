@@ -87,15 +87,15 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Writes `value` at `index` in the vector.
     ///
-    /// Returns `Err(())` if `index` is out of bounds.
-    #[allow(clippy::result_unit_err)]
-    pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
+    /// Returns `Ok(())` if successful, or `Err(value)` if `index` is out of bounds,
+    /// allowing the caller to recover the rejected element.
+    pub const fn write(&mut self, index: usize, value: T) -> Result<(), T> {
         if index <= self.length && index < MAX_LENGTH {
             self.write_unchecked(index, value);
 
             Ok(())
         } else {
-            Err(())
+            Err(value)
         }
     }
 
@@ -832,7 +832,7 @@ mod tests {
     fn test_vec_write_out_of_bound() {
         let mut vec = Vec::<u8, 3>::new();
 
-        assert_eq!(Err(()), vec.write(3, 1));
+        assert_eq!(Err(1), vec.write(3, 1));
     }
 
     #[test]
