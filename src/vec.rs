@@ -422,6 +422,11 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         vec
     }
 
+    /// Decodes `value` as a little-endian integer into at most `max_length` bytes, trimming trailing zeros.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `max_length` exceeds `MAX_LENGTH`.
     #[must_use]
     fn from_uint_unchecked(mut value: u64, max_length: usize) -> Self
     where
