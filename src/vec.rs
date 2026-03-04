@@ -82,7 +82,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[must_use]
     pub unsafe fn pop_unchecked(&mut self) -> T {
         self.length -= 1;
-        unsafe { self.get_unchecked(self.length) }
+        unsafe { self.take_unchecked(self.length) }
     }
 
     /// Writes `value` at `index` in the vector.
@@ -192,46 +192,14 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         }
     }
 
-    /// Returns the element at `index`, or `None` if out of bounds.
-    #[must_use]
-    pub fn get(&self, index: usize) -> Option<T> {
-        if index < self.length {
-            // This is a safe operation because we know that the index is within bounds
-            unsafe { Some(self.get_unchecked(index)) }
-        } else {
-            None
-        }
-    }
-
     /// Returns the element at `index` without checking bounds.
     ///
     /// # Safety
     ///
     /// `index` must be less than `self.length`.
     #[must_use]
-    pub unsafe fn get_unchecked(&self, index: usize) -> T {
+    unsafe fn take_unchecked(&self, index: usize) -> T {
         unsafe { self.array.get_unchecked(index).as_ptr().read() }
-    }
-
-    /// Returns the element at `index`, or `None` if out of bounds.
-    #[must_use]
-    pub fn get_mut(&mut self, index: usize) -> Option<T> {
-        if index < self.length {
-            // This is a safe operation because we know the index is within bounds
-            unsafe { Some(self.get_mut_unchecked(index)) }
-        } else {
-            None
-        }
-    }
-
-    /// Returns the element at `index` without checking bounds.
-    ///
-    /// # Safety
-    ///
-    /// `index` must be less than `self.length`.
-    #[must_use]
-    pub unsafe fn get_mut_unchecked(&mut self, index: usize) -> T {
-        unsafe { self.array.get_unchecked_mut(index).as_mut_ptr().read() }
     }
 
     /// Shortens the vector to `new_length`, dropping excess elements. Does nothing if `new_length >= self.length`.
@@ -352,7 +320,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         let mut index = 0;
         while index < self.len() {
             // This is a safe operation because we know that the index is within bounds
-            let byte = unsafe { self.get_unchecked(index).into() };
+            let byte = unsafe { self.take_unchecked(index).into() };
 
             value |= u64::from(byte) << (index * 8);
 
@@ -426,7 +394,7 @@ impl<T, const MAX_LENGTH: usize> Iterator for IntoIter<T, MAX_LENGTH> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.next < self.vec.len() {
             // This is a safe operation because we know that the index is within bounds
-            let value = unsafe { self.vec.get_unchecked(self.next) };
+            let value = unsafe { self.vec.take_unchecked(self.next) };
             self.next += 1;
 
             Some(value)
@@ -825,7 +793,7 @@ mod tests {
 
         assert_eq!(Ok(()), vec.write(0, 1));
         assert_eq!(1, vec.len());
-        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(&1), vec.first());
         assert_eq!(None, vec.get(1));
     }
 
@@ -843,7 +811,7 @@ mod tests {
         vec.write_unchecked(0, 1);
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(&1), vec.first());
         assert_eq!(None, vec.get(1));
     }
 
@@ -853,9 +821,9 @@ mod tests {
 
         assert_eq!(Ok(()), vec.write_slice(0, &[1, 2, 3]));
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -873,9 +841,9 @@ mod tests {
         vec.write_slice_unchecked(0, &[1, 2, 3]);
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -885,7 +853,7 @@ mod tests {
 
         assert_eq!(Ok(()), vec.insert(0, 1));
         assert_eq!(1, vec.len());
-        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(&1), vec.first());
         assert_eq!(None, vec.get(1));
     }
 
@@ -895,10 +863,10 @@ mod tests {
 
         assert_eq!(Ok(()), vec.insert(1, 4));
         assert_eq!(4, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(4), vec.get(1));
-        assert_eq!(Some(2), vec.get(2));
-        assert_eq!(Some(3), vec.get(3));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&4), vec.get(1));
+        assert_eq!(Some(&2), vec.get(2));
+        assert_eq!(Some(&3), vec.get(3));
     }
 
     #[test]
@@ -914,8 +882,8 @@ mod tests {
 
         assert_eq!(Some(2), vec.remove(1));
         assert_eq!(2, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(3), vec.get(1));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&3), vec.get(1));
         assert_eq!(None, vec.get(2));
     }
 
@@ -925,8 +893,8 @@ mod tests {
 
         assert_eq!(Some(3), vec.remove(2));
         assert_eq!(2, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
         assert_eq!(None, vec.get(2));
     }
 
@@ -942,7 +910,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
 
-        assert_eq!(Some(1), vec.get(0));
+        assert_eq!(Some(&1), vec.first());
         assert_eq!(1, vec.len());
         assert_eq!(None, vec.get(1));
     }
@@ -961,7 +929,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
 
-        assert_eq!(1, unsafe { vec.get_unchecked(0) });
+        assert_eq!(&1, unsafe { vec.get_unchecked(0) });
         assert_eq!(1, vec.len());
     }
 
@@ -970,7 +938,7 @@ mod tests {
         let mut vec = Vec::<u8, 1>::new();
         let _ = vec.push(1);
 
-        assert_eq!(Some(1), vec.get_mut(0));
+        assert_eq!(Some(&mut 1), vec.get_mut(0));
         assert_eq!(1, vec.len());
         assert_eq!(None, vec.get_mut(1));
     }
@@ -985,24 +953,15 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_get_mut_unchecked() {
-        let mut vec = Vec::<u8, 1>::new();
-        let _ = vec.push(1);
-
-        assert_eq!(1, unsafe { vec.get_mut_unchecked(0) });
-        assert_eq!(1, vec.len());
-    }
-
-    #[test]
     fn test_vec_extend() {
         let mut vec = Vec::<u8, 3>::new();
         let array: [u8; 3] = [1, 2, 3];
 
         vec.extend(array);
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -1081,9 +1040,9 @@ mod tests {
         let vec: Vec<u8, 3> = [1, 2, 3].as_slice().try_into().unwrap();
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -1092,9 +1051,9 @@ mod tests {
         let vec: Vec<u8, 8> = [1, 2, 3].as_slice().try_into().unwrap();
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -1110,9 +1069,9 @@ mod tests {
         let vec: Vec<u8, 3> = Vec::from(&[1, 2, 3]);
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -1121,9 +1080,9 @@ mod tests {
         let vec: Vec<u8, 3> = [1, 2, 3].into();
 
         assert_eq!(3, vec.len());
-        assert_eq!(Some(1), vec.get(0));
-        assert_eq!(Some(2), vec.get(1));
-        assert_eq!(Some(3), vec.get(2));
+        assert_eq!(Some(&1), vec.first());
+        assert_eq!(Some(&2), vec.get(1));
+        assert_eq!(Some(&3), vec.get(2));
         assert_eq!(None, vec.get(3));
     }
 
@@ -1132,7 +1091,7 @@ mod tests {
         let vec: Vec<u8, 8> = 0xffu8.into();
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(0xff), vec.get(0));
+        assert_eq!(Some(&0xff), vec.first());
         assert_eq!(None, vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
@@ -1147,8 +1106,8 @@ mod tests {
         let vec: Vec<u8, 8> = 0xff00u16.into();
 
         assert_eq!(2, vec.len());
-        assert_eq!(Some(0x00), vec.get(0));
-        assert_eq!(Some(0xff), vec.get(1));
+        assert_eq!(Some(&0x00), vec.first());
+        assert_eq!(Some(&0xff), vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
         assert_eq!(None, vec.get(4));
@@ -1162,7 +1121,7 @@ mod tests {
         let vec: Vec<u8, 8> = 0x00ffu16.into();
 
         assert_eq!(1, vec.len());
-        assert_eq!(Some(0xff), vec.get(0));
+        assert_eq!(Some(&0xff), vec.first());
         assert_eq!(None, vec.get(1));
         assert_eq!(None, vec.get(2));
         assert_eq!(None, vec.get(3));
@@ -1177,10 +1136,10 @@ mod tests {
         let vec: Vec<u8, 8> = 0xff00_ff00_u32.into();
 
         assert_eq!(4, vec.len());
-        assert_eq!(Some(0x00), vec.get(0));
-        assert_eq!(Some(0xff), vec.get(1));
-        assert_eq!(Some(0x00), vec.get(2));
-        assert_eq!(Some(0xff), vec.get(3));
+        assert_eq!(Some(&0x00), vec.first());
+        assert_eq!(Some(&0xff), vec.get(1));
+        assert_eq!(Some(&0x00), vec.get(2));
+        assert_eq!(Some(&0xff), vec.get(3));
         assert_eq!(None, vec.get(4));
         assert_eq!(None, vec.get(5));
         assert_eq!(None, vec.get(6));
@@ -1192,14 +1151,14 @@ mod tests {
         let vec: Vec<u8, 8> = 0xff00_ff00_ff00_ff00_u64.into();
 
         assert_eq!(8, vec.len());
-        assert_eq!(Some(0x00), vec.get(0));
-        assert_eq!(Some(0xff), vec.get(1));
-        assert_eq!(Some(0x00), vec.get(2));
-        assert_eq!(Some(0xff), vec.get(3));
-        assert_eq!(Some(0x00), vec.get(4));
-        assert_eq!(Some(0xff), vec.get(5));
-        assert_eq!(Some(0x00), vec.get(6));
-        assert_eq!(Some(0xff), vec.get(7));
+        assert_eq!(Some(&0x00), vec.first());
+        assert_eq!(Some(&0xff), vec.get(1));
+        assert_eq!(Some(&0x00), vec.get(2));
+        assert_eq!(Some(&0xff), vec.get(3));
+        assert_eq!(Some(&0x00), vec.get(4));
+        assert_eq!(Some(&0xff), vec.get(5));
+        assert_eq!(Some(&0x00), vec.get(6));
+        assert_eq!(Some(&0xff), vec.get(7));
     }
 
     #[test]
