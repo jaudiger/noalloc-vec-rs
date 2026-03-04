@@ -669,7 +669,7 @@ where
         I: IntoIterator<Item = &'a T>,
     {
         for elem in iter.into_iter().cloned() {
-            self.push(elem).map_err(|_| ()).expect("Too many elements");
+            self.push_unchecked(elem);
         }
     }
 }
@@ -688,7 +688,7 @@ impl<T, const MAX_LENGTH: usize> Extend<T> for Vec<T, MAX_LENGTH> {
         I: IntoIterator<Item = T>,
     {
         for elem in iter {
-            self.push(elem).map_err(|_| ()).expect("Too many elements");
+            self.push_unchecked(elem);
         }
     }
 }
