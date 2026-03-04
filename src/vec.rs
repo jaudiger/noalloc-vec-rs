@@ -150,12 +150,12 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Inserts `value` at `index`, shifting subsequent elements to the right.
     ///
-    /// Returns `Err(())` if `index` is out of bounds or the vector is full.
-    #[allow(clippy::result_unit_err)]
-    pub fn insert(&mut self, index: usize, value: T) -> Result<(), ()> {
+    /// Returns `Ok(())` if successful, or `Err(value)` if `index` is out of bounds
+    /// or the vector is full, allowing the caller to recover the rejected element.
+    pub fn insert(&mut self, index: usize, value: T) -> Result<(), T> {
         // Check if the element can be inserted
         if index > self.length || self.length + 1 > MAX_LENGTH {
-            Err(())
+            Err(value)
         } else {
             // Shift all the elements after the index to the right
             unsafe {
@@ -904,7 +904,7 @@ mod tests {
     fn test_vec_insert_out_of_bound() {
         let mut vec = Vec::<u8, 0>::new();
 
-        assert_eq!(Err(()), vec.insert(1, 1));
+        assert_eq!(Err(1), vec.insert(1, 1));
     }
 
     #[test]
