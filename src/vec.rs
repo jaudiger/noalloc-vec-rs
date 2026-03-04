@@ -689,7 +689,7 @@ where
 /// This allows extending a `Vec` with references to elements.
 impl<'a, T, const MAX_LENGTH: usize> Extend<&'a T> for Vec<T, MAX_LENGTH>
 where
-    T: 'a + Copy,
+    T: 'a + Clone,
 {
     /// Extends the `Vec` with elements from `iter`.
     ///
@@ -700,7 +700,7 @@ where
     where
         I: IntoIterator<Item = &'a T>,
     {
-        for elem in iter.into_iter().copied() {
+        for elem in iter.into_iter().cloned() {
             self.push(elem).map_err(|_| ()).expect("Too many elements");
         }
     }
