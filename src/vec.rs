@@ -64,8 +64,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[allow(clippy::result_unit_err)]
     pub fn push(&mut self, value: T) -> Result<(), ()> {
         if self.length < MAX_LENGTH {
-            // This is a safe operation because we've checked that the vector is not full
-            unsafe { self.push_unchecked(value) };
+            self.push_unchecked(value);
 
             Ok(())
         } else {
@@ -79,10 +78,10 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     ///
     /// * `value` - The value to push onto the vector.
     ///
-    /// # Safety
+    /// # Panics
     ///
-    /// Capacity must be checked before calling this function.
-    pub const unsafe fn push_unchecked(&mut self, value: T) {
+    /// Panics if the vector is full.
+    pub const fn push_unchecked(&mut self, value: T) {
         self.array[self.length].write(value);
         self.length += 1;
     }
@@ -424,7 +423,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     }
 
     #[must_use]
-    unsafe fn from_uint_unchecked(mut value: u64, max_length: usize) -> Self
+    fn from_uint_unchecked(mut value: u64, max_length: usize) -> Self
     where
         T: From<u8>,
     {
@@ -438,7 +437,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
                 real_length = index + 1;
             }
 
-            unsafe { vec.push_unchecked(byte.into()) };
+            vec.push_unchecked(byte.into());
 
             // Shift the value to the right
             value >>= 8;
@@ -687,8 +686,7 @@ impl<const MAX_LENGTH: usize> From<u8> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u8>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        // This is a safe operation because we check at build time that the length is sufficient
-        unsafe { Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH) }
+        Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
     }
 }
 
@@ -702,8 +700,7 @@ impl<const MAX_LENGTH: usize> From<u16> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u16>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        // This is a safe operation because we check at build time that the length is sufficient
-        unsafe { Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH) }
+        Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
     }
 }
 
@@ -717,8 +714,7 @@ impl<const MAX_LENGTH: usize> From<u32> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u32>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        // This is a safe operation because we check at build time that the length is sufficient
-        unsafe { Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH) }
+        Self::from_uint_unchecked(u64::from(value), VALUE_LENGTH)
     }
 }
 
@@ -732,8 +728,7 @@ impl<const MAX_LENGTH: usize> From<u64> for Vec<u8, MAX_LENGTH> {
         const VALUE_LENGTH: usize = size_of::<u64>();
         assert_lte!(VALUE_LENGTH, MAX_LENGTH);
 
-        // This is a safe operation because we check at build time that the length is sufficient
-        unsafe { Self::from_uint_unchecked(value, VALUE_LENGTH) }
+        Self::from_uint_unchecked(value, VALUE_LENGTH)
     }
 }
 
@@ -860,8 +855,7 @@ where
     fn clone(&self) -> Self {
         let mut new_vec = Self::new();
         for elem in self {
-            // This is a safe operation because the destination vector has the same capacity as the source vector
-            unsafe { new_vec.push_unchecked(elem.clone()) };
+            new_vec.push_unchecked(elem.clone());
         }
 
         new_vec
@@ -914,7 +908,7 @@ mod tests {
     fn test_vec_push_unchecked() {
         let mut vec = Vec::<u8, 1>::new();
 
-        unsafe { vec.push_unchecked(1) };
+        vec.push_unchecked(1);
 
         assert_eq!(1, vec.len());
         assert!(!vec.is_empty());
