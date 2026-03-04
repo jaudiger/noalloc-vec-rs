@@ -91,8 +91,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
     #[allow(clippy::result_unit_err)]
     pub fn write(&mut self, index: usize, value: T) -> Result<(), ()> {
         if index <= self.length && index < MAX_LENGTH {
-            // This is a safe operation because we've checked that the vector can hold the value
-            unsafe { self.write_unchecked(index, value) };
+            self.write_unchecked(index, value);
 
             Ok(())
         } else {
@@ -102,10 +101,10 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Writes `value` at `index` without checking bounds.
     ///
-    /// # Safety
+    /// # Panics
     ///
-    /// `index` must be less than `MAX_LENGTH`.
-    pub const unsafe fn write_unchecked(&mut self, index: usize, value: T) {
+    /// Panics if `index` is out of bounds.
+    pub const fn write_unchecked(&mut self, index: usize, value: T) {
         // Make sure all the previous bytes are initialized before reading the array
         self.array[index].write(value);
         if index >= self.length {
@@ -122,8 +121,7 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
         T: Copy,
     {
         if index <= self.length && index + value.len() <= MAX_LENGTH {
-            // This is a safe operation because we've checked that the vector can hold the slice
-            unsafe { self.write_slice_unchecked(index, value) };
+            self.write_slice_unchecked(index, value);
 
             Ok(())
         } else {
@@ -133,17 +131,17 @@ impl<T, const MAX_LENGTH: usize> Vec<T, MAX_LENGTH> {
 
     /// Writes `value` into the vector starting at `start_index` without checking bounds.
     ///
-    /// # Safety
+    /// # Panics
     ///
-    /// `start_index + value.len()` must not exceed `MAX_LENGTH`.
-    pub const unsafe fn write_slice_unchecked(&mut self, mut start_index: usize, value: &[T])
+    /// Panics if `start_index + value.len()` exceeds `MAX_LENGTH`.
+    pub const fn write_slice_unchecked(&mut self, mut start_index: usize, value: &[T])
     where
         T: Copy,
     {
         // Make sure all the previous bytes are initialized before reading the array
         let mut index = 0;
         while index < value.len() {
-            unsafe { self.write_unchecked(start_index, value[index]) };
+            self.write_unchecked(start_index, value[index]);
 
             index += 1;
             start_index += 1;
@@ -844,7 +842,7 @@ mod tests {
     fn test_vec_write_unchecked() {
         let mut vec = Vec::<u8, 3>::new();
 
-        unsafe { vec.write_unchecked(0, 1) };
+        vec.write_unchecked(0, 1);
 
         assert_eq!(1, vec.len());
         assert_eq!(Some(1), vec.get(0));
@@ -874,7 +872,7 @@ mod tests {
     fn test_vec_write_slice_unchecked() {
         let mut vec = Vec::<u8, 3>::new();
 
-        unsafe { vec.write_slice_unchecked(0, &[1, 2, 3]) };
+        vec.write_slice_unchecked(0, &[1, 2, 3]);
 
         assert_eq!(3, vec.len());
         assert_eq!(Some(1), vec.get(0));
