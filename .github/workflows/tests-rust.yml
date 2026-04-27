@@ -1,22 +1,22 @@
-name: Continuous Integration - Tests
+name: Continuous Integration - Tests (Rust)
 
 on:
   push:
     paths:
-      - ".github/workflows/tests.yml"
+      - ".github/workflows/tests-rust.yml"
       - "**/Cargo.toml"
       - "**/Cargo.lock"
       - "**/*.rs"
   pull_request:
     paths:
-      - ".github/workflows/tests.yml"
+      - ".github/workflows/tests-rust.yml"
       - "**/Cargo.toml"
       - "**/Cargo.lock"
       - "**/*.rs"
   workflow_dispatch:
 
 concurrency:
-  group: tests-${{ github.ref_name }}
+  group: tests-rust-${{ github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -24,6 +24,33 @@ env:
   CODE_COVERAGE_REPORT_FILE: report.xml
 
 jobs:
+  rust-benchmark-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry + build
+        uses: actions/cache@v5.0.5
+        with:
+          path: |
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+            ~/.cargo/bin
+            ~/.cargo/git/db
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/index
+            target
+          key: rust-benchmark-tests-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo bench --all-features
+
   rust-unit-tests:
     runs-on: ubuntu-latest
     steps:
@@ -53,7 +80,7 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/registry/index
             target
-          key: unit-tests-${{ hashFiles('**/Cargo.lock') }}
+          key: rust-unit-tests-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run tests and generate coverage reports
         run: |
@@ -73,30 +100,3 @@ jobs:
         with:
           filename: ${{ env.CODE_COVERAGE_REPORT_FOLDER }}/${{ env.CODE_COVERAGE_REPORT_FILE }}
           indicators: false
-
-  rust-benchmark-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Cache cargo registry + build
-        uses: actions/cache@v5.0.5
-        with:
-          path: |
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
-            ~/.cargo/bin
-            ~/.cargo/git/db
-            ~/.cargo/registry/cache
-            ~/.cargo/registry/index
-            target
-          key: bench-tests-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run tests
-        run: cargo bench --all-features
