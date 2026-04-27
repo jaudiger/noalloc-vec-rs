@@ -24,7 +24,7 @@ env:
   CODE_COVERAGE_REPORT_FILE: report.xml
 
 jobs:
-  unit-tests:
+  rust-unit-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -74,7 +74,7 @@ jobs:
           filename: ${{ env.CODE_COVERAGE_REPORT_FOLDER }}/${{ env.CODE_COVERAGE_REPORT_FILE }}
           indicators: false
 
-  bench-tests:
+  rust-benchmark-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
