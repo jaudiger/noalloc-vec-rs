@@ -1061,7 +1061,7 @@ mod tests {
     fn test_small_vec_try_from_array_as_slice_should_failed() {
         let vec_result: Result<Vec<u8, 1>, _> = [1, 2, 3].as_slice().try_into();
 
-        assert!(vec_result.is_err());
+        assert_eq!(vec_result, Err(()));
     }
 
     #[test]
